@@ -1,14 +1,13 @@
 import { useState } from 'react';
 import { useStore } from '../context/Store';
 import { fingerprintSupported, savedFingerprint } from '../lib/webauthn';
-import { Banner, Field } from './ui';
+import { Banner } from './ui';
 
 export default function Login() {
   const { loginStaff, loginStudent, loginWithFingerprint, recoverPassword, data } = useStore();
-  const [tab, setTab] = useState('staff');
+  const [tab, setTab] = useState('admin');
   const [nationalId, setNationalId] = useState('');
   const [password, setPassword] = useState('');
-  const [show, setShow] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [busy, setBusy] = useState(false);
@@ -19,8 +18,12 @@ export default function Login() {
     event.preventDefault();
     setError('');
     setInfo('');
+    if (!nationalId.trim()) {
+      setError('يرجى إدخال السجل المدني.');
+      return;
+    }
     setBusy(true);
-    const result = tab === 'staff'
+    const result = tab === 'admin'
       ? await loginStaff(nationalId, password)
       : await loginStudent(nationalId);
     setBusy(false);
@@ -30,6 +33,10 @@ export default function Login() {
   const fingerprint = async () => {
     setError('');
     setInfo('');
+    if (!fingerprintSupported()) {
+      setError('هذا المتصفح لا يدعم المصادقة بالبصمة.');
+      return;
+    }
     setBusy(true);
     const result = await loginWithFingerprint();
     setBusy(false);
@@ -45,68 +52,74 @@ export default function Login() {
       return;
     }
     setError('');
-    setInfo(`تم التحقق من البريد ${result.email}. كلمة المرور المؤقتة: ${result.password}. حُفظت أيضاً في سجل الرسائل لأن الإرسال البريدي الفعلي يحتاج مزود بريد.`);
+    setInfo(`تم التحقق من البريد ${result.email}. كلمة المرور المؤقتة: ${result.password}. حُفظت في سجل الرسائل لأن الإرسال الفعلي يحتاج مزود بريد.`);
     setRecover(false);
-    setTab('staff');
+    setTab('admin');
   };
 
   return (
-    <div className="bg-app grid min-h-screen place-items-center px-4 py-10" dir="rtl">
-      <div className="grid w-full max-w-5xl items-stretch gap-6 lg:grid-cols-[1.1fr_.9fr]">
-        <section className="card relative overflow-hidden p-8">
-          <div className="absolute -left-16 -top-16 h-48 w-48 rounded-full bg-[var(--blob)] blur-2xl" />
-          <p className="relative text-sm font-bold text-[var(--accent)]">{data.settings.administrationName}</p>
-          <h1 className="relative mt-3 text-4xl font-extrabold leading-snug">نظام موهوبات</h1>
-          <p className="relative mt-3 max-w-md text-lg leading-9 text-mute">{data.settings.centerName}</p>
-          <div className="relative mt-8 grid gap-3 sm:grid-cols-3">
-            {['حضور بلمسة', 'برامج وشهادات', 'حفظ مستمر'].map((item) => (
-              <div key={item} className="rounded-2xl bg-[var(--soft)] px-3 py-4 text-center font-bold">{item}</div>
-            ))}
-          </div>
-        </section>
+    <div className="bg-app flex min-h-screen items-center justify-center p-4" dir="rtl">
+      <div className="card w-full max-w-md p-8">
+        <div className="mb-6 text-center">
+          <div className="text-4xl">✦</div>
+          <h1 className="mt-2 text-2xl font-extrabold">نظام موهوبات الإلكتروني</h1>
+          <p className="mt-1 text-sm text-mute">{data.settings.administrationName}</p>
+          <p className="text-sm text-mute">{data.settings.centerName}</p>
+        </div>
 
-        <section className="card p-6">
-          <div className="mb-5 grid grid-cols-2 gap-2 rounded-2xl bg-[var(--soft)] p-1">
-            <button className={tab === 'staff' ? 'btn-primary' : 'btn-ghost'} type="button" onClick={() => setTab('staff')}>الإدارة والموظفات</button>
-            <button className={tab === 'student' ? 'btn-primary' : 'btn-ghost'} type="button" onClick={() => setTab('student')}>الطالبات</button>
-          </div>
+        <div className="mb-6 grid grid-cols-2 gap-1 rounded-2xl bg-[var(--soft)] p-1">
+          <button type="button" className={tab === 'admin' ? 'btn-primary' : 'btn-ghost'} onClick={() => { setTab('admin'); setRecover(false); }}>
+            مسؤول النظام / المعلمات
+          </button>
+          <button type="button" className={tab === 'student' ? 'btn-primary' : 'btn-ghost'} onClick={() => { setTab('student'); setRecover(false); }}>
+            دخول الطالبات
+          </button>
+        </div>
 
-          <form className="space-y-4" onSubmit={recover ? recoverSubmit : submit}>
-            <Field label="السجل المدني">
-              <input className="field" dir="ltr" inputMode="numeric" value={nationalId} onChange={(event) => setNationalId(event.target.value)} placeholder="10 أرقام" />
-            </Field>
-            {tab === 'staff' && !recover && (
-              <Field label="كلمة المرور">
-                <div className="flex gap-2">
-                  <input className="field" dir="ltr" type={show ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} />
-                  <button className="btn-ghost" type="button" onClick={() => setShow((value) => !value)}>{show ? 'إخفاء' : 'إظهار'}</button>
-                </div>
-              </Field>
-            )}
-            {recover && (
-              <Field label="البريد الإلكتروني المسجل">
-                <input className="field" dir="ltr" type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
-              </Field>
-            )}
-            {error && <Banner tone="bad">{error}</Banner>}
-            {info && <Banner>{info}</Banner>}
-            <button className="btn-primary w-full" disabled={busy} type="submit">
-              {busy ? 'جاري التحقق...' : recover ? 'استعادة كلمة المرور' : tab === 'staff' ? 'دخول الموظفات' : 'دخول الطالبة'}
-            </button>
-          </form>
+        <form className="space-y-4" onSubmit={recover ? recoverSubmit : submit}>
+          <label className="block">
+            <span className="label">{tab === 'student' ? 'السجل المدني للطالبة' : 'السجل المدني'}</span>
+            <input className="field" dir="ltr" inputMode="numeric" required value={nationalId} onChange={(event) => setNationalId(event.target.value)} placeholder="أدخلي السجل المدني" />
+          </label>
 
-          {tab === 'staff' && (
-            <div className="mt-4 grid gap-2">
-              <button className="btn-soft w-full" type="button" onClick={() => { setRecover((value) => !value); setError(''); }}>
-                {recover ? 'العودة لتسجيل الدخول' : 'استعادة كلمة المرور عبر البريد الإلكتروني'}
+          {tab === 'admin' && !recover && (
+            <label className="block">
+              <span className="label">كلمة المرور</span>
+              <input className="field" dir="ltr" type="password" required value={password} onChange={(event) => setPassword(event.target.value)} placeholder="••••••" />
+              <button type="button" className="mt-2 text-sm font-bold text-[var(--primary)]" onClick={() => { setRecover(true); setError(''); }}>
+                استعادة كلمة المرور عبر البريد؟
               </button>
-              <button className="btn-ghost w-full" type="button" onClick={fingerprint} disabled={!fingerprintSupported()}>
-                الدخول بالبصمة {savedFingerprint() ? '' : '(بعد تسجيلها من داخل النظام)'}
-              </button>
-            </div>
+            </label>
           )}
-          <p className="mt-4 text-center text-xs leading-6 text-mute">يُرفض أي سجل غير مضاف في النظام.</p>
-        </section>
+
+          {recover && (
+            <label className="block">
+              <span className="label">البريد الإلكتروني المسجل</span>
+              <input className="field" dir="ltr" type="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
+            </label>
+          )}
+
+          {error && <Banner tone="bad">{error}</Banner>}
+          {info && <Banner>{info}</Banner>}
+
+          <button className="btn-primary w-full" disabled={busy} type="submit">
+            {busy ? 'جاري التحقق...' : recover ? 'إرسال استعادة كلمة المرور' : 'تسجيل الدخول للنظام'}
+          </button>
+        </form>
+
+        {tab === 'admin' && (
+          <button className="btn-soft mt-4 w-full" type="button" onClick={fingerprint} disabled={busy}>
+            الدخول السريع بالبصمة {savedFingerprint() ? '' : '(بعد تسجيلها من داخل النظام)'}
+          </button>
+        )}
+
+        {recover && (
+          <button className="btn-ghost mt-3 w-full" type="button" onClick={() => setRecover(false)}>العودة لتسجيل الدخول</button>
+        )}
+
+        <p className="mt-6 border-t border-[var(--line)] pt-4 text-center text-xs text-mute">
+          يُقبل دخول المالك ومسؤولات النظام والطالبات المسجلات فقط. جميع الحقوق محفوظة © {data.settings.centerName}
+        </p>
       </div>
     </div>
   );

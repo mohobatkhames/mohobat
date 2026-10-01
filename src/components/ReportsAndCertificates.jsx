@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { GRADES } from '../lib/constants';
 import { isAttending, isInvited } from '../lib/course';
+import { navigate, pageFromPath } from '../lib/routes';
 import { useStore } from '../context/Store';
 import Certificate from './Certificate';
 import { Empty, GradeSelect } from './ui';
@@ -15,10 +16,21 @@ const REPORTS = [
 
 export default function ReportsAndCertificates() {
   const { data, issueCertificate } = useStore();
-  const [tab, setTab] = useState('reports');
+  const [tab, setTab] = useState(() => (pageFromPath(window.location.pathname) === 'certificates' ? 'certificates' : 'reports'));
   const [grade, setGrade] = useState('الكل');
   const [report, setReport] = useState('comprehensive');
   const [active, setActive] = useState(null);
+
+  useEffect(() => {
+    const sync = () => setTab(pageFromPath(window.location.pathname) === 'certificates' ? 'certificates' : 'reports');
+    window.addEventListener('popstate', sync);
+    return () => window.removeEventListener('popstate', sync);
+  }, []);
+
+  const openTab = (next) => {
+    setTab(next);
+    navigate(next === 'certificates' ? '/certificates' : '/reports');
+  };
 
   const students = useMemo(() => {
     const list = data.students.filter((student) => grade === 'الكل' || student.grade === grade);
@@ -51,8 +63,8 @@ export default function ReportsAndCertificates() {
           <p className="text-sm text-mute">{data.settings.administrationName} · {data.settings.centerName}</p>
         </div>
         <div className="flex gap-2">
-          <button className={tab === 'reports' ? 'btn-primary' : 'btn-soft'} type="button" onClick={() => setTab('reports')}>التقارير</button>
-          <button className={tab === 'certificates' ? 'btn-primary' : 'btn-soft'} type="button" onClick={() => setTab('certificates')}>الشهادات</button>
+          <button className={tab === 'reports' ? 'btn-primary' : 'btn-soft'} type="button" onClick={() => openTab('reports')}>التقارير</button>
+          <button className={tab === 'certificates' ? 'btn-primary' : 'btn-soft'} type="button" onClick={() => openTab('certificates')}>الشهادات</button>
         </div>
       </section>
 

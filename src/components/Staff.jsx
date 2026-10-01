@@ -64,7 +64,7 @@ export default function Staff() {
                       <div className="flex flex-wrap gap-2">
                         <button className="btn-soft" type="button" onClick={() => { setForm(user); setEditing(true); }}>تعديل</button>
                         <button className="btn-ghost" type="button" onClick={() => setMessage(resetStaffPassword(user.nationalId).message)}>كلمة افتراضية</button>
-                        <button className="btn-danger" type="button" onClick={() => { if (window.confirm(`حذف ${user.name}؟`)) deleteStaff(user.nationalId); }}>حذف</button>}
+                        <button className="btn-danger" type="button" onClick={() => { if (window.confirm(`حذف ${user.name}؟`)) deleteStaff(user.nationalId); }}>حذف</button>
                       </div>
                     </td>
                   </tr>

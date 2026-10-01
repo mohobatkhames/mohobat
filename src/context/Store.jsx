@@ -14,7 +14,7 @@ const StoreContext = createContext(null);
 function ownerRecord() {
   return {
     nationalId: OWNER_ID,
-    name: 'مالك النظام',
+    name: 'عبدالله الشهراني - أبو نايف',
     role: 'owner',
     job: 'مالك',
     phone: '',
@@ -48,8 +48,18 @@ function defaultState() {
 }
 
 function withOwner(state) {
-  if (state.users?.some((user) => user.role === 'owner' || user.nationalId === OWNER_ID)) return state;
-  return { ...state, users: [ownerRecord(), ...(state.users || [])] };
+  const users = state.users || [];
+  const owner = users.find((user) => user.role === 'owner' || user.nationalId === OWNER_ID);
+  if (!owner) return { ...state, users: [ownerRecord(), ...users] };
+  if (owner.name === 'مالك النظام') {
+    return {
+      ...state,
+      users: users.map((user) => (user.role === 'owner' || user.nationalId === OWNER_ID)
+        ? { ...user, name: 'عبدالله الشهراني - أبو نايف' }
+        : user),
+    };
+  }
+  return state;
 }
 
 function loadState() {
@@ -521,8 +531,9 @@ export function StoreProvider({ children }) {
       saveCourse: (course) => {
         const current = dataRef.current;
         if (!course.name?.trim()) return { ok: false, message: 'اسم الدورة مطلوب.' };
-        if (!course.date) return { ok: false, message: 'تاريخ التنفيذ مطلوب.' };
+        if (!course.date && !course.hijri) return { ok: false, message: 'تاريخ التنفيذ مطلوب.' };
         if (!GRADES.includes(course.grade)) return { ok: false, message: 'اختاري صفاً دراسياً.' };
+        const date = course.date || todayISO();
         const invitees = { ...(course.invitees || {}) };
         current.students.filter((student) => student.grade === course.grade).forEach((student) => {
           if (invitees[student.nationalId] == null) invitees[student.nationalId] = true;
@@ -531,10 +542,11 @@ export function StoreProvider({ children }) {
           ...course,
           id: course.id || uid('course'),
           name: course.name.trim(),
+          date,
           invitees,
           presence: course.presence || {},
-          weekday: weekdayName(course.date),
-          hijri: formatHijri(course.date),
+          weekday: course.weekday || weekdayName(date),
+          hijri: course.hijri || formatHijri(date),
           updatedAt: nowIso(),
         };
         const courses = current.courses.some((item) => item.id === record.id)

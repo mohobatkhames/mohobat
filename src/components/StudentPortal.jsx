@@ -29,7 +29,8 @@ export default function StudentPortal() {
       <header className="no-print mx-auto flex max-w-5xl flex-wrap items-center gap-3 px-4 py-5">
         <div className="min-w-0 w-full sm:w-auto sm:flex-1">
           <p className="text-sm text-[var(--accent)]">{store.data.settings.centerName}</p>
-          <h1 className="truncate text-2xl font-extrabold">مرحباً {student.name}</h1>
+          <h1 className="truncate text-2xl font-extrabold">بوابة الطالبة الموهوبة</h1>
+          <p className="text-sm text-mute">مرحباً بك {student.name}</p>
         </div>
         <div className="flex gap-2">
           {THEMES.map((theme) => (

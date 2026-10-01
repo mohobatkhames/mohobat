@@ -88,7 +88,7 @@ export default function Courses() {
               <button className="btn-primary" type="button" onClick={() => openComposer('internal')}>إنشاء رسالة</button>
               <button className="btn-soft" type="button" onClick={() => openComposer('email')}>إرسال بالبريد</button>
               <button className="btn-ghost" type="button" onClick={() => openComposer('sms')}>SMS لأولياء الأمور</button>
-              <button className="btn-danger" type="button" onClick={() => { if (window.confirm('حذف هذه الدورة؟')) { deleteCourse(active.id); setActiveId(''); setForm(blank); } }}>حذف</button>}
+              <button className="btn-danger" type="button" onClick={() => { if (window.confirm('حذف هذه الدورة؟')) { deleteCourse(active.id); setActiveId(''); setForm(blank); } }}>حذف</button>
             </div>
           </div>
           <p className="mb-3 text-sm text-mute">الضغط على الدعوة يحوّلها من ✓ إلى X للاستثناء. الضغط على الحضور يسجل الغياب عن البرنامج.</p>

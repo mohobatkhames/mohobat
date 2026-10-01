@@ -18,6 +18,20 @@ const types = {
   '.woff2': 'font/woff2',
 };
 
+const APP_PATHS = new Set([
+  '/',
+  '/dashboard',
+  '/students',
+  '/staff',
+  '/attendance',
+  '/courses',
+  '/messages',
+  '/reports',
+  '/certificates',
+  '/settings',
+  '/portal',
+]);
+
 function publicEnv() {
   const keys = [
     'REACT_APP_FIREBASE_API_KEY',
@@ -32,30 +46,68 @@ function publicEnv() {
   return `window.__MOHOBAT_ENV__ = ${JSON.stringify(values)};`;
 }
 
+function sendFile(res, file) {
+  const data = fs.readFileSync(file);
+  const ext = path.extname(file);
+  const cache = ext === '.html' ? 'no-cache' : 'public, max-age=31536000, immutable';
+  res.writeHead(200, {
+    'Content-Type': types[ext] || 'application/octet-stream',
+    'Cache-Control': cache,
+  });
+  res.end(data);
+}
+
+function sendIndex(res) {
+  const file = path.join(root, 'index.html');
+  if (!fs.existsSync(file)) {
+    res.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('Build output is missing. Run npm run build.');
+    return;
+  }
+  sendFile(res, file);
+}
+
 const server = http.createServer((req, res) => {
-  const urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
+  const urlPath = decodeURIComponent((req.url || '/').split('?')[0]).replace(/\/+$/, '') || '/';
+
+  if (urlPath === '/healthz') {
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end('ok');
+    return;
+  }
+
   if (urlPath === '/env.js') {
     res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store' });
     res.end(publicEnv());
     return;
   }
 
-  const safe = path.normalize(urlPath).replace(/^(\.\.[/\\])+/, '');
-  let file = path.join(root, safe === path.sep ? 'index.html' : safe);
+  if (APP_PATHS.has(urlPath)) {
+    sendIndex(res);
+    return;
+  }
+
+  const relative = path.normalize(urlPath).replace(/^([/\\])+/, '').replace(/^(\.\.[/\\])+/, '');
+  const file = path.join(root, relative);
 
   if (!file.startsWith(root)) {
-    res.writeHead(403);
+    res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('Forbidden');
     return;
   }
 
-  if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) {
-    file = path.join(root, 'index.html');
+  if (fs.existsSync(file) && fs.statSync(file).isFile()) {
+    sendFile(res, file);
+    return;
   }
 
-  const data = fs.readFileSync(file);
-  res.writeHead(200, { 'Content-Type': types[path.extname(file)] || 'application/octet-stream' });
-  res.end(data);
+  if (path.extname(urlPath)) {
+    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('Not found');
+    return;
+  }
+
+  sendIndex(res);
 });
 
 server.listen(port, '0.0.0.0', () => {

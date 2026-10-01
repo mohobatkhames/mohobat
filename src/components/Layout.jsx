@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { THEMES, ROLE_LABELS } from '../lib/constants';
 import { formatTime } from '../lib/dates';
+import { navigate, pageFromPath, pathFromPage } from '../lib/routes';
 import { useStore } from '../context/Store';
 import Attendance from './Attendance';
-import Courses from './Courses';
+import CoursesAndMessages from './CoursesAndMessages';
 import Dashboard from './Dashboard';
-import Messages from './Messages';
 import ReportsAndCertificates from './ReportsAndCertificates';
 import SettingsPanel from './SettingsPanel';
 import Staff from './Staff';
@@ -17,21 +17,28 @@ const PAGES = [
   ['students', 'الطالبات', Students],
   ['staff', 'الموظفات', Staff, true],
   ['attendance', 'الحضور', Attendance],
-  ['courses', 'البرامج', Courses],
-  ['messages', 'الرسائل', Messages],
+  ['courses', 'البرامج', () => <CoursesAndMessages initialTab="courses" />],
+  ['messages', 'الرسائل', () => <CoursesAndMessages initialTab="messages" />],
   ['reports', 'التقارير والشهادات', ReportsAndCertificates],
   ['settings', 'الإعدادات', SettingsPanel, true],
 ];
 
 export default function Layout() {
   const store = useStore();
-  const [page, setPage] = useState('dashboard');
+  const [page, setPage] = useState(() => pageFromPath(window.location.pathname));
   const [open, setOpen] = useState(false);
   const [account, setAccount] = useState(false);
   const [notice, setNotice] = useState('');
   const [passwords, setPasswords] = useState({ current: '', next: '' });
+  useEffect(() => {
+    const sync = () => setPage(pageFromPath(window.location.pathname));
+    window.addEventListener('popstate', sync);
+    return () => window.removeEventListener('popstate', sync);
+  }, []);
+
   const visible = PAGES.filter((item) => !item[3] || store.canManage);
-  const Active = visible.find((item) => item[0] === page)?.[2] || Dashboard;
+  const view = page === 'certificates' ? 'reports' : page;
+  const Active = visible.find((item) => item[0] === view)?.[2] || Dashboard;
 
   const savePassword = (event) => {
     event.preventDefault();
@@ -54,14 +61,18 @@ export default function Layout() {
         </div>
         <nav className="space-y-1">
           {visible.map(([id, label]) => (
-            <button
+            <a
               key={id}
-              className={`block w-full rounded-2xl px-4 py-3 text-right font-bold ${page === id ? 'btn-primary' : 'hover:bg-[var(--soft)]'}`}
-              onClick={() => { setPage(id); setOpen(false); }}
-              type="button"
+              href={pathFromPage(id)}
+              className={`block w-full rounded-2xl px-4 py-3 text-right font-bold ${page === id || (id === 'reports' && page === 'certificates') ? 'btn-primary' : 'hover:bg-[var(--soft)]'}`}
+              onClick={(event) => {
+                event.preventDefault();
+                navigate(pathFromPage(id));
+                setOpen(false);
+              }}
             >
               {label}
-            </button>
+            </a>
           ))}
         </nav>
       </aside>
