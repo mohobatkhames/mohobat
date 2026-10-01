@@ -1,0 +1,148 @@
+rules_version = '2';
+// صلاحيات نظام موهوبات حتى 1 نوفمبر 2026، مع تقييد الدخول حسب الدور.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function beforeDeadline() {
+      return request.time < timestamp.date(2026, 11, 1);
+    }
+
+    function userPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    function hasProfile() {
+      return signedIn() && exists(userPath());
+    }
+
+    function me() {
+      return get(userPath()).data;
+    }
+
+    function role() {
+      return hasProfile() ? me().role : '';
+    }
+
+    function myNationalId() {
+      return hasProfile() ? me().nationalId : '';
+    }
+
+    function isAdmin() {
+      return role() in ['owner', 'admin', 'director'];
+    }
+
+    function isStaff() {
+      return role() in ['owner', 'admin', 'director', 'teacher', 'employee'];
+    }
+
+    function isStudent() {
+      return role() == 'student';
+    }
+
+    match /settings/general {
+      allow read: if beforeDeadline() && signedIn() && (isStaff() || isStudent());
+      allow write: if beforeDeadline() && isAdmin();
+    }
+
+    match /settings/security {
+      allow read, write: if beforeDeadline() && isAdmin();
+    }
+
+    match /users/{uid} {
+      allow read: if beforeDeadline() && signedIn() && (request.auth.uid == uid || isStaff());
+
+      allow create: if beforeDeadline() && (
+        (
+          request.auth.uid == uid
+          && request.resource.data.role == 'owner'
+          && request.resource.data.nationalId == '1025774389'
+          && request.auth.token.email == '1025774389@mohobat-khames.app'
+        )
+        || (
+          request.auth.uid == uid
+          && request.resource.data.role == 'student'
+          && request.auth.token.email == request.resource.data.nationalId + '@students.mohobat-khames.app'
+        )
+        || isAdmin()
+      );
+
+      allow update: if beforeDeadline() && (
+        isAdmin()
+        || (
+          signedIn()
+          && request.auth.uid == uid
+          && request.resource.data.role == resource.data.role
+          && request.resource.data.nationalId == resource.data.nationalId
+        )
+      );
+
+      allow delete: if beforeDeadline() && isAdmin() && request.auth.uid != uid;
+    }
+
+    match /students/{studentId} {
+      allow read: if beforeDeadline() && (
+        isStaff() || (isStudent() && myNationalId() == resource.data.nationalId)
+      );
+      allow create, delete: if beforeDeadline() && isAdmin();
+      allow update: if beforeDeadline() && (
+        isAdmin()
+        || (
+          isStudent()
+          && myNationalId() == resource.data.nationalId
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['certificatePrinted', 'lastPrintedAt'])
+        )
+      );
+    }
+
+    match /attendance/{docId} {
+      allow read, write: if beforeDeadline() && isStaff();
+    }
+
+    match /courses/{docId} {
+      allow read: if beforeDeadline() && (isStaff() || isStudent());
+      allow write: if beforeDeadline() && isStaff();
+    }
+
+    match /messages/{docId} {
+      allow read: if beforeDeadline() && (
+        isStaff()
+        || (
+          isStudent()
+          && resource.data.recipientIds is list
+          && myNationalId() in resource.data.recipientIds
+        )
+      );
+      allow create: if beforeDeadline() && (
+        isStaff()
+        || (
+          isStudent()
+          && request.resource.data.channel == 'print-notice'
+          && request.resource.data.studentNationalId == myNationalId()
+        )
+      );
+      allow update, delete: if beforeDeadline() && isAdmin();
+    }
+
+    match /certificates/{docId} {
+      allow read: if beforeDeadline() && (
+        isStaff() || (isStudent() && resource.data.nationalId == myNationalId())
+      );
+      allow create: if beforeDeadline() && (
+        isStaff()
+        || (
+          isStudent()
+          && request.resource.data.nationalId == myNationalId()
+          && request.resource.data.action == 'printed'
+        )
+      );
+      allow update: if beforeDeadline() && (
+        isStaff() || (isStudent() && resource.data.nationalId == myNationalId())
+      );
+      allow delete: if beforeDeadline() && isAdmin();
+    }
+  }
+}

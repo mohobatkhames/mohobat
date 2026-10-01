@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: mohobat-khames
+    env: node
+    region: frankfurt
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: REACT_APP_FIREBASE_API_KEY
+        sync: false
+      - key: REACT_APP_FIREBASE_AUTH_DOMAIN
+        value: mohobat-khames.firebaseapp.com
+      - key: REACT_APP_FIREBASE_PROJECT_ID
+        value: mohobat-khames
+      - key: REACT_APP_FIREBASE_STORAGE_BUCKET
+        value: mohobat-khames.appspot.com
+      - key: REACT_APP_FIREBASE_MESSAGING_SENDER_ID
+        sync: false
+      - key: REACT_APP_FIREBASE_APP_ID
+        sync: false
+      - key: REACT_APP_OWNER_ID
+        sync: false
+      - key: REACT_APP_OWNER_PASSWORD
+        sync: false
