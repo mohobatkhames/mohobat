@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { THEMES, ROLE_LABELS } from '../lib/constants';
+import { ROLE_LABELS } from '../lib/constants';
 import { formatBothDateTime } from '../lib/dates';
 import { navigate, pageFromPath, pathFromPage } from '../lib/routes';
 import { useStore } from '../context/Store';
@@ -12,6 +12,8 @@ import SettingsPanel from './SettingsPanel';
 import Staff from './Staff';
 import Students from './Students';
 import DirectorSignature from './DirectorSignature';
+import ThemeSwitch from './ThemeSwitch';
+import TrainerSignature from './TrainerSignature';
 import InstallApp from './InstallApp';
 import { Banner, Field, Modal, PasswordField } from './ui';
 
@@ -49,6 +51,7 @@ export default function Layout() {
   }, []);
 
   const visible = PAGES.filter((item) => {
+    if (store.session?.role === 'trainer') return item[0] === 'dashboard';
     if (item[3] === 'owner') return store.session?.role === 'owner';
     return !item[3] || store.canManage;
   });
@@ -98,21 +101,11 @@ export default function Layout() {
             <button className="btn-ghost shrink-0 lg:hidden" type="button" onClick={() => setOpen((value) => !value)}>القائمة</button>
             <div className="min-w-0 flex-1">
               <p className="text-sm leading-6 text-mute">{store.data.settings.administrationName}</p>
-              <p className="break-words font-extrabold leading-7">{store.session.name} · {ROLE_LABELS[store.session.role]}</p>
+              <p className="break-words font-extrabold leading-7">{store.session.name} · {store.session.role === 'trainer' ? (store.session.job || ROLE_LABELS.trainer) : ROLE_LABELS[store.session.role]}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {THEMES.map((theme) => (
-              <button
-                key={theme.id}
-                type="button"
-                title={theme.label}
-                aria-label={theme.label}
-                onClick={() => store.setTheme(theme.id)}
-                className="h-7 w-7 rounded-full border-2 border-white shadow"
-                style={{ background: theme.id === 'rose' ? '#e11d48' : theme.id === 'lilac' ? '#6d5efc' : theme.id === 'blossom' ? '#f472b6' : theme.id === 'dusk' ? '#6b21a8' : '#7c3aed', outline: store.data.theme === theme.id ? '2px solid var(--text)' : 'none' }}
-              />
-            ))}
+            <ThemeSwitch />
             {store.session?.role === 'owner' && (
               <button className="btn-primary" type="button" onClick={() => navigate('/support')}>تعديل وحفظ</button>
             )}
@@ -147,6 +140,7 @@ export default function Layout() {
             </form>
             <button className="btn-soft w-full" type="button" onClick={fingerprint}>تسجيل الدخول بالبصمة على هذا الجهاز</button>
             {store.session?.role === 'director' && <DirectorSignature />}
+            {store.session?.role === 'trainer' && <TrainerSignature />}
           </div>
         </Modal>
       )}

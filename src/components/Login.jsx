@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useStore } from '../context/Store';
 import { fingerprintSupported, savedFingerprint } from '../lib/webauthn';
 import InstallApp from './InstallApp';
+import ThemeSwitch from './ThemeSwitch';
 import { Banner, PasswordField } from './ui';
 
 export default function Login() {
@@ -117,6 +118,7 @@ export default function Login() {
           <button className="btn-ghost mt-3 w-full" type="button" onClick={() => setRecover(false)}>العودة لتسجيل الدخول</button>
         )}
 
+        <ThemeSwitch />
         <InstallApp />
         <p className="mt-4 border-t border-[var(--line)] pt-4 text-center text-xs leading-6 text-mute">
           صمم لمركز الموهوبات بخميس مشيط © جميع الحقوق محفوظة

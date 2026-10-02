@@ -252,7 +252,15 @@ export default function CoursesAndMessages({ initialTab = 'courses' }) {
               </label>
               <label className="block">
                 <span className="label">المدرب / المدربة</span>
-                <input className="field" required value={courseForm.trainer} onChange={(event) => setCourseForm({ ...courseForm, trainer: event.target.value })} />
+                <select className="field" required value={courseForm.trainer} onChange={(event) => setCourseForm({ ...courseForm, trainer: event.target.value })}>
+                  <option value="">اختاري من المدربين المضافين في لوحة التحكم</option>
+                  {data.users.filter((user) => user.role === 'trainer').map((user) => (
+                    <option key={user.nationalId} value={user.name}>{user.name} — {user.job}</option>
+                  ))}
+                  {courseForm.trainer && !data.users.some((user) => user.role === 'trainer' && user.name === courseForm.trainer) && (
+                    <option value={courseForm.trainer}>{courseForm.trainer}</option>
+                  )}
+                </select>
               </label>
               <label className="block">
                 <span className="label">الصف لتحديد المدعوات</span>
@@ -296,7 +304,7 @@ export default function CoursesAndMessages({ initialTab = 'courses' }) {
                     <div>
                       <h4 className="font-extrabold">{course.name}</h4>
                       <p className="mt-1 text-sm text-mute">
-                        المدربة: {course.trainer || '—'} | المكان: {course.locationType || course.place} {course.locationName ? `(${course.locationName})` : ''} | التاريخ: {course.date ? formatBoth(course.date) : (course.hijri || course.hijriDate || '—')}
+                        المدرب / المدربة: {course.trainer || '—'} | المكان: {course.locationType || course.place} {course.locationName ? `(${course.locationName})` : ''} | التاريخ: {course.date ? formatBoth(course.date) : (course.hijri || course.hijriDate || '—')}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">

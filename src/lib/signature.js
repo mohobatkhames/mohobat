@@ -54,6 +54,16 @@ function trimTransparent(image) {
   return canvas.toDataURL('image/png');
 }
 
+export async function trimSignatureUrl(src) {
+  const image = await loadImage(src);
+  const canvas = document.createElement('canvas');
+  canvas.width = image.width;
+  canvas.height = image.height;
+  const context = canvas.getContext('2d');
+  context.drawImage(image, 0, 0);
+  return trimTransparent(context.getImageData(0, 0, canvas.width, canvas.height));
+}
+
 export async function signatureFromFile(file) {
   const address = URL.createObjectURL(file);
   try {

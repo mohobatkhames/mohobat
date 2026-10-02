@@ -52,7 +52,11 @@ service cloud.firestore {
     }
 
     match /users/{uid} {
-      allow read: if beforeDeadline() && signedIn() && (request.auth.uid == uid || isStaff());
+      allow read: if beforeDeadline() && signedIn() && (
+        request.auth.uid == uid
+        || isStaff()
+        || (isStudent() && resource.data.role == 'trainer')
+      );
 
       allow create: if beforeDeadline() && (
         (
@@ -64,7 +68,10 @@ service cloud.firestore {
         || (
           request.auth.uid == uid
           && request.resource.data.role == 'student'
+          && request.resource.data.nationalId is string
+          && request.resource.data.nationalId.size() == 10
           && request.auth.token.email == request.resource.data.nationalId + '@students.mohobat-khames.app'
+          && exists(/databases/$(database)/documents/students/$(request.resource.data.nationalId))
         )
         || isAdmin()
       );

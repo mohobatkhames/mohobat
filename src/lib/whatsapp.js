@@ -13,6 +13,12 @@ export function whatsappLink(phone, text) {
   return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
 }
 
+export function whatsappLabel(value) {
+  const international = whatsappPhone(value) || DEFAULT_WHATSAPP_NUMBER;
+  const local = international.startsWith('966') ? `0${international.slice(3)}` : international;
+  return { local, international };
+}
+
 export function whatsappRecipients(audience, students = [], users = []) {
   const list = [];
   const seen = new Set();

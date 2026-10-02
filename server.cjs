@@ -1,6 +1,8 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { handleGatewayRequest } = require('./lib/gatewayServer.cjs');
+const { manifestForOrigin, requestOrigin } = require('./lib/manifest.cjs');
 
 const port = Number(process.env.PORT) || 4173;
 const root = path.join(__dirname, 'dist');
@@ -34,6 +36,37 @@ const APP_PATHS = new Set([
   '/portal',
 ]);
 
+function securityHeaders() {
+  return {
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'no-referrer',
+    'X-DNS-Prefetch-Control': 'off',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+    'Content-Security-Policy': [
+      "default-src 'self'",
+      "script-src 'self'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com data:",
+      "img-src 'self' data: blob:",
+      "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebasestorage.app wss://*.firebaseio.com",
+      "manifest-src 'self'",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "frame-ancestors 'none'",
+      "form-action 'self'",
+    ].join('; '),
+  };
+}
+
+function sendText(res, status, type, body) {
+  res.writeHead(status, {
+    ...securityHeaders(),
+    'Content-Type': type,
+    'Cache-Control': 'no-store',
+  });
+  res.end(body);
+}
 function publicEnv() {
   const keys = [
     'REACT_APP_FIREBASE_API_KEY',
@@ -56,6 +89,7 @@ function sendFile(res, file) {
     ? 'no-cache'
     : 'public, max-age=31536000, immutable';
   res.writeHead(200, {
+    ...securityHeaders(),
     'Content-Type': types[ext] || 'application/octet-stream',
     'Cache-Control': cache,
   });
@@ -65,7 +99,7 @@ function sendFile(res, file) {
 function sendIndex(res) {
   const file = path.join(root, 'index.html');
   if (!fs.existsSync(file)) {
-    res.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.writeHead(503, { ...securityHeaders(), 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('Build output is missing. Run npm run build.');
     return;
   }
@@ -73,17 +107,41 @@ function sendIndex(res) {
 }
 
 const server = http.createServer((req, res) => {
-  const urlPath = decodeURIComponent((req.url || '/').split('?')[0]).replace(/\/+$/, '') || '/';
+  const decoded = decodeURIComponent((req.url || '/').split('?')[0]);
+  const urlPath = decoded.replace(/\/+$/, '') || '/';
+  if (decoded.includes('\0') || decoded.split(/[/\\]/).includes('..')) {
+    sendText(res, 403, 'text/plain; charset=utf-8', 'Forbidden');
+    return;
+  }
+
+  if (urlPath === '/api/gateway') {
+    handleGatewayRequest(req, res);
+    return;
+  }
+
+  if (urlPath === '/manifest.webmanifest') {
+    const manifestFile = path.join(root, 'manifest.webmanifest');
+    if (!fs.existsSync(manifestFile)) {
+      res.writeHead(404, { ...securityHeaders(), 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end('Not found');
+      return;
+    }
+    res.writeHead(200, {
+      ...securityHeaders(),
+      'Content-Type': 'application/manifest+json; charset=utf-8',
+      'Cache-Control': 'no-cache',
+    });
+    res.end(manifestForOrigin(requestOrigin(req), manifestFile));
+    return;
+  }
 
   if (urlPath === '/healthz') {
-    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
-    res.end('ok');
+    sendText(res, 200, 'text/plain; charset=utf-8', 'ok');
     return;
   }
 
   if (urlPath === '/env.js') {
-    res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store' });
-    res.end(publicEnv());
+    sendText(res, 200, 'text/javascript; charset=utf-8', publicEnv());
     return;
   }
 
@@ -92,12 +150,12 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  const relative = path.normalize(urlPath).replace(/^([/\\])+/, '').replace(/^(\.\.[/\\])+/, '');
-  const file = path.join(root, relative);
-
-  if (!file.startsWith(root)) {
-    res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
-    res.end('Forbidden');
+  const relative = path.normalize(decoded).replace(/^([/\\])+/, '');
+  const file = path.resolve(root, relative);
+  const rootResolved = path.resolve(root);
+  const blockedName = path.basename(file).startsWith('.') || ['.map', '.env'].includes(path.extname(file));
+  if (blockedName || (file !== rootResolved && !file.startsWith(rootResolved + path.sep))) {
+    sendText(res, 403, 'text/plain; charset=utf-8', 'Forbidden');
     return;
   }
 
@@ -107,8 +165,7 @@ const server = http.createServer((req, res) => {
   }
 
   if (path.extname(urlPath)) {
-    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-    res.end('Not found');
+    sendText(res, 404, 'text/plain; charset=utf-8', 'Not found');
     return;
   }
 

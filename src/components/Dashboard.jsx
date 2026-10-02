@@ -6,10 +6,13 @@ import { Banner, Empty, Field, GradeSelect } from './ui';
 const blankGuardian = { name: '', nationalId: '', grade: '', guardianPhone: '' };
 
 export default function Dashboard() {
-  const { data, session, cloud, saveStudent, deleteStudent, canManage } = useStore();
+  const { data, session, cloud, saveStudent, deleteStudent, saveStaff, deleteStaff, canManage } = useStore();
   const [guardianForm, setGuardianForm] = useState(null);
   const [editingId, setEditingId] = useState('');
+  const [trainerForm, setTrainerForm] = useState(null);
+  const [trainerEditing, setTrainerEditing] = useState(false);
   const [notice, setNotice] = useState('');
+  const trainers = data.users.filter((user) => user.role === 'trainer');
   const today = todayISO();
   const absentToday = Object.values(data.attendance[today] || {}).filter((value) => value === false).length;
   const notices = data.messages.filter((message) => message.channel === 'print-notice' || message.channel === 'receipt-notice').slice(0, 8);
@@ -56,14 +59,45 @@ export default function Dashboard() {
   };
 
   const setField = (key) => (event) => setGuardianForm({ ...guardianForm, [key]: event.target.value });
+  const setTrainerField = (key) => (event) => setTrainerForm({ ...trainerForm, [key]: event.target.value });
+
+  const openTrainer = (user) => {
+    setTrainerEditing(Boolean(user));
+    setTrainerForm(user
+      ? { name: user.name || '', nationalId: user.nationalId || '', job: user.job === 'مدرب' ? 'مدرب' : 'مدربة', phone: user.phone || '' }
+      : { name: '', nationalId: '', job: 'مدربة', phone: '' });
+    setNotice('');
+  };
+
+  const saveTrainer = (event) => {
+    event.preventDefault();
+    const result = saveStaff({ ...trainerForm, email: '', joinDate: '' });
+    setNotice(result.ok
+      ? (trainerEditing ? 'تم تعديل بيانات المدرب.' : 'تمت الإضافة. يدخل المدرب بكلمة المرور الافتراضية، ثم يوقّع من زر حسابي.')
+      : result.message);
+    if (result.ok) {
+      setTrainerForm(null);
+      setTrainerEditing(false);
+    }
+  };
+
+  const removeTrainer = (user) => {
+    const reason = window.prompt(`سبب حذف ${user.name}`);
+    if (!reason?.trim()) return;
+    const result = deleteStaff(user.nationalId, reason.trim());
+    setNotice(result.ok ? 'نُقل سجل المدرب إلى الأرشيف.' : result.message);
+  };
 
   return (
     <div className="space-y-4">
       <section className="card p-6">
         <p className="text-sm font-bold text-[var(--accent)]">{formatBoth(today)}</p>
         <h2 className="mt-1 text-3xl font-extrabold">
-          {session?.role === 'owner' ? 'أهلاً بك يا أبو نايف في نظام موهوبات' : `أهلاً بك ${session?.name || ''} في نظام موهوبات`}
+          {session?.role === 'owner' ? 'أهلاً بك في نظام موهوبات' : `أهلاً بك ${session?.name || ''} في نظام موهوبات`}
         </h2>
+        {(cloud.mode === 'signing' || cloud.mode === 'ready') && (
+          <p className="mt-3 text-lg font-extrabold text-[var(--primary)]">جاري تسجيل الدخول</p>
+        )}
         <p className="mt-2 text-mute">النظام جاهز لإدارة الطالبات، الحضور، البرامج، والتقارير والشهادات. {data.settings.semester} · {data.settings.academicYear}</p>
       </section>
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -96,7 +130,7 @@ export default function Dashboard() {
         <article className="card p-5">
           <h3 className="mb-3 text-lg font-extrabold">المزامنة السحابية</h3>
           <p className="text-sm leading-7">الطالبات، الحضور والغياب، البرامج، والشهادات تُزامَن مباشرة مع Firestore.</p>
-          <p className="mt-3 text-sm font-bold text-[var(--primary)]">{cloud.mode === 'synced' ? 'المزامنة السحابية تعمل' : cloud.mode === 'error' ? 'تعذرت المزامنة مع Firestore' : 'بانتظار تسجيل الدخول للمزامنة'}</p>
+          <p className="mt-3 text-sm font-bold text-[var(--primary)]">{cloud.mode === 'synced' ? 'المزامنة السحابية تعمل' : cloud.mode === 'error' ? 'تعذرت المزامنة مع Firestore' : 'جاري تسجيل الدخول'}</p>
         </article>
       </section>
       <section className="grid gap-4 lg:grid-cols-2">
@@ -163,6 +197,64 @@ export default function Dashboard() {
                         <button className="btn-soft" type="button" disabled={!canManage} onClick={openAdd}>إضافة</button>
                         <button className="btn-ghost" type="button" disabled={!canManage} onClick={() => openEdit(student)}>تعديل</button>
                         <button className="btn-danger" type="button" disabled={!canManage} onClick={() => removeGuardian(student)}>حذف</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+      <section className="card p-4 sm:p-5">
+        <h2 className="text-2xl font-extrabold">المدربون والمدربات</h2>
+        <p className="mt-1 text-sm leading-7 text-mute">أضيفي المدرب أو المدربة من هنا. بعد تسجيل الدخول يفتح «حسابي» ويوقّع على الشاشة، فيظهر التوقيع في مكانه على الشهادة.</p>
+        {trainerForm && (
+          <form className="mt-4 grid gap-3" onSubmit={saveTrainer}>
+            <Field label="الاسم"><input className="field" value={trainerForm.name} onChange={setTrainerField('name')} /></Field>
+            <Field label="السجل المدني"><input className="field" dir="ltr" inputMode="numeric" value={trainerForm.nationalId} onChange={setTrainerField('nationalId')} disabled={trainerEditing} /></Field>
+            <Field label="الصفة">
+              <select className="field" value={trainerForm.job} onChange={setTrainerField('job')}>
+                <option value="مدربة">مدربة</option>
+                <option value="مدرب">مدرب</option>
+              </select>
+            </Field>
+            <Field label="الجوال"><input className="field" dir="ltr" inputMode="tel" value={trainerForm.phone} onChange={setTrainerField('phone')} /></Field>
+            <div className="flex flex-wrap gap-2">
+              <button className="btn-primary" type="submit" disabled={!canManage}>{trainerEditing ? 'حفظ التعديل' : 'حفظ الإضافة'}</button>
+              <button className="btn-ghost" type="button" onClick={() => { setTrainerForm(null); setTrainerEditing(false); }}>إلغاء</button>
+            </div>
+          </form>
+        )}
+        {trainers.length === 0 ? (
+          <div className="mt-4">
+            <Empty text="لا يوجد مدرب أو مدربة." />
+            {canManage && <button className="btn-primary mt-3" type="button" onClick={() => openTrainer(null)}>إضافة مدرب أو مدربة</button>}
+          </div>
+        ) : (
+          <div className="table-wrap mt-4">
+            <table className="data">
+              <thead>
+                <tr>
+                  <th>الاسم</th>
+                  <th>السجل المدني</th>
+                  <th>الصفة</th>
+                  <th>التوقيع</th>
+                  <th>إجراءات</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trainers.map((user) => (
+                  <tr key={user.nationalId}>
+                    <td>{user.name}</td>
+                    <td dir="ltr">{user.nationalId}</td>
+                    <td>{user.job}</td>
+                    <td>{user.signature ? 'محفوظ' : 'بانتظار التوقيع'}</td>
+                    <td>
+                      <div className="row-actions">
+                        <button className="btn-soft" type="button" disabled={!canManage} onClick={() => openTrainer(null)}>إضافة</button>
+                        <button className="btn-ghost" type="button" disabled={!canManage} onClick={() => openTrainer(user)}>تعديل</button>
+                        <button className="btn-danger" type="button" disabled={!canManage} onClick={() => removeTrainer(user)}>حذف</button>
                       </div>
                     </td>
                   </tr>

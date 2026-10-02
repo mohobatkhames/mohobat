@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { THEMES } from '../lib/constants';
 import { formatBothDateTime } from '../lib/dates';
 import { useStore } from '../context/Store';
 import Certificate from './Certificate';
 import InstallApp from './InstallApp';
+import ThemeSwitch from './ThemeSwitch';
 import { Banner, Empty } from './ui';
 
 export default function StudentPortal() {
@@ -14,10 +14,13 @@ export default function StudentPortal() {
   };
   const messages = store.data.messages.filter((message) => (message.recipientIds || []).includes(student.nationalId));
   const [notice, setNotice] = useState('');
+  const issued = store.data.certificates.find((item) => item.nationalId === student.nationalId && item.kind);
+  const attended = store.data.courses.some((course) => (course.invitees ? course.invitees[student.nationalId] !== false : true) && (!course.presence || course.presence[student.nationalId] !== false) && (course.grade ? course.grade === student.grade : true));
+  const kind = issued?.kind || student.certificateKind || (attended ? 'completion' : 'appreciation');
 
   const printCertificate = () => {
     const finish = () => {
-      store.issueCertificate({ student, action: 'printed', byRole: 'student' });
+      store.issueCertificate({ student, action: 'printed', byRole: 'student', kind });
       setNotice('تم إرسال إشعار الطباعة إلى النظام.');
       window.removeEventListener('afterprint', finish);
     };
@@ -33,11 +36,7 @@ export default function StudentPortal() {
           <h1 className="text-2xl font-extrabold leading-snug">بوابة الطالبة الموهوبة</h1>
           <p className="break-words text-sm leading-6 text-mute">مرحباً بك {student.name}</p>
         </div>
-        <div className="flex gap-2">
-          {THEMES.map((theme) => (
-            <button key={theme.id} className="h-7 w-7 rounded-full border-2 border-white" type="button" aria-label={theme.label} style={{ background: theme.id === 'rose' ? '#e11d48' : theme.id === 'lilac' ? '#6d5efc' : theme.id === 'blossom' ? '#f472b6' : theme.id === 'dusk' ? '#6b21a8' : '#7c3aed' }} onClick={() => store.setTheme(theme.id)} />
-          ))}
-        </div>
+        <ThemeSwitch />
         <button className="btn-ghost" type="button" onClick={store.logout}>خروج</button>
       </header>
       <div className="no-print mx-auto max-w-5xl px-4"><InstallApp /></div>

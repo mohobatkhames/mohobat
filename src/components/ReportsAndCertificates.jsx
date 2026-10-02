@@ -22,6 +22,7 @@ export default function ReportsAndCertificates() {
   const [grade, setGrade] = useState('الكل');
   const [report, setReport] = useState('comprehensive');
   const [active, setActive] = useState(null);
+  const [kind, setKind] = useState('appreciation');
 
   useEffect(() => {
     const sync = () => setTab(pageFromPath(window.location.pathname) === 'certificates' ? 'certificates' : 'reports');
@@ -49,11 +50,21 @@ export default function ReportsAndCertificates() {
     : [grade];
   const courses = data.courses.filter((course) => grade === 'الكل' || course.grade === grade);
 
+  const openCertificate = (student) => {
+    const attended = data.courses.some((course) => isAttending(course, student.nationalId));
+    setKind(attended ? 'completion' : 'appreciation');
+    setActive(student);
+  };
+
   const emailCertificate = (student) => {
-    issueCertificate({ student, action: 'emailed', byRole: 'staff' });
+    const attended = data.courses.some((course) => isAttending(course, student.nationalId));
+    const nextKind = active?.nationalId === student.nationalId ? kind : (attended ? 'completion' : 'appreciation');
+    issueCertificate({ student, action: 'emailed', byRole: 'staff', kind: nextKind });
+    const title = nextKind === 'completion' ? 'شهادة إنجاز' : 'شهادة تقدير';
     if (student.email) {
-      window.open(`mailto:${student.email}?subject=${encodeURIComponent('شهادة موهوبات')}&body=${encodeURIComponent(`شهادة ${student.name}\n${data.settings.centerName}\n${data.settings.administrationName}`)}`, '_blank');
+      window.open(`mailto:${student.email}?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(`${title}\n${student.name}\n${data.settings.centerName}\n${data.settings.administrationName}`)}`, '_blank');
     }
+    setKind(nextKind);
     setActive(student);
   };
 
@@ -170,7 +181,7 @@ export default function ReportsAndCertificates() {
                 <h3 className="mt-1 font-extrabold">{student.name}</h3>
                 <p className="text-sm text-mute" dir="ltr">{student.nationalId}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <button className="btn-primary" type="button" onClick={() => setActive(student)}>عرض الشهادة</button>
+                  <button className="btn-primary" type="button" onClick={() => openCertificate(student)}>عرض الشهادة</button>
                   <button className="btn-soft" type="button" onClick={() => emailCertificate(student)}>إرسال للإيميل</button>
                 </div>
               </article>
@@ -178,11 +189,13 @@ export default function ReportsAndCertificates() {
           </div>
           {active && (
             <div className="space-y-3">
-              <div className="no-print flex gap-2">
-                <button className="btn-primary" type="button" onClick={() => { issueCertificate({ student: active, action: 'printed', byRole: 'staff' }); window.print(); }}>طباعة وتوثيق</button>
+              <div className="no-print flex flex-wrap gap-2">
+                <button className={kind === 'appreciation' ? 'btn-primary' : 'btn-soft'} type="button" onClick={() => setKind('appreciation')}>شهادة تقدير</button>
+                <button className={kind === 'completion' ? 'btn-primary' : 'btn-soft'} type="button" onClick={() => setKind('completion')}>شهادة إنجاز</button>
+                <button className="btn-primary" type="button" onClick={() => { issueCertificate({ student: active, action: 'printed', byRole: 'staff', kind }); window.print(); }}>طباعة وتوثيق</button>
                 <button className="btn-ghost" type="button" onClick={() => setActive(null)}>إغلاق المعاينة</button>
               </div>
-              <Certificate settings={data.settings} student={active} courses={data.courses} users={data.users} />
+              <Certificate settings={data.settings} student={active} courses={data.courses} users={data.users} kind={kind} />
             </div>
           )}
         </section>

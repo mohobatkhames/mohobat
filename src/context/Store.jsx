@@ -1,9 +1,10 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { GRADES, OWNER_ID, OWNER_PASSWORD, isManager, jobRole } from '../lib/constants';
+import { GRADES, OWNER_ID, OWNER_PASSWORD, activeTheme, isManager, jobRole } from '../lib/constants';
 import { canSync, cloudSignOut, ensureProfile, provisionAccount, pushSnapshot, removeCloud, signInCloud, subscribe, watchAuth, writeCloud } from '../lib/cloud';
 import { isFirebaseConfigured } from '../firebase';
 import { nowIso, todayISO, weekdayName, formatHijri } from '../lib/dates';
 import { normalizeId, tempPassword, uid } from '../lib/ids';
+import { cloudSettings, normalizeGateway } from '../lib/gateway';
 import { loginWithDeviceFingerprint, registerFingerprint } from '../lib/webauthn';
 
 const LOCAL_KEY = 'mohobat-khames-db-v1';
@@ -38,6 +39,14 @@ function defaultState() {
       showSignatureOnCertificates: false,
       showSignatureOnReports: false,
       whatsappNumber: '966559820932',
+      gateway: {
+        enabled: false,
+        apiUrl: '',
+        apiKey: '',
+        senderId: '',
+        sms: true,
+        whatsapp: true,
+      },
       updatedAt: nowIso(),
     },
     users: [ownerRecord()],
@@ -47,7 +56,8 @@ function defaultState() {
     messages: [],
     certificates: [],
     archive: [],
-    theme: 'orchid',
+    theme: 'navy',
+    mode: 'day',
     privacyAccepted: false,
   };
 }
@@ -75,7 +85,11 @@ function loadState() {
     return withOwner({
       ...base,
       ...parsed,
-      settings: { ...base.settings, ...(parsed.settings || {}) },
+      settings: {
+        ...base.settings,
+        ...(parsed.settings || {}),
+        gateway: normalizeGateway({ ...base.settings.gateway, ...(parsed.settings?.gateway || {}) }),
+      },
       users: parsed.users || base.users,
       students: parsed.students || [],
       attendance: parsed.attendance || {},
@@ -97,6 +111,20 @@ function sessionFrom(user) {
     job: user.job || '',
     email: user.email || '',
   };
+}
+
+const UNREGISTERED = 'غير مصرح بالدخول. هذا السجل غير مسجل في النظام.';
+
+function registeredStaff(state, nationalId) {
+  const id = normalizeId(nationalId);
+  if (id.length !== 10) return null;
+  return state.users.find((item) => normalizeId(item.nationalId) === id && item.role !== 'student') || null;
+}
+
+function registeredStudent(state, nationalId) {
+  const id = normalizeId(nationalId);
+  if (id.length !== 10) return null;
+  return state.students.find((item) => normalizeId(item.nationalId) === id) || null;
 }
 
 function readAttempts() {
@@ -166,11 +194,18 @@ export function StoreProvider({ children }) {
     }
   });
   const [savedAt, setSavedAt] = useState(null);
-  const [cloud, setCloud] = useState({
-    mode: isFirebaseConfigured() ? 'ready' : 'error',
-    message: isFirebaseConfigured()
-      ? 'Firestore جاهز. تبدأ المزامنة المباشرة بعد تسجيل الدخول.'
-      : 'مفاتيح Firebase غير مكتملة. أضيفي القيم الحقيقية في متغيرات البيئة على Render.',
+  const [cloud, setCloud] = useState(() => {
+    if (!isFirebaseConfigured()) {
+      return { mode: 'error', message: 'مفاتيح Firebase غير مكتملة. أضيفي القيم الحقيقية في متغيرات البيئة على Render.' };
+    }
+    let signedIn = false;
+    try {
+      signedIn = Boolean(JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'));
+    } catch {
+      signedIn = false;
+    }
+    if (signedIn) return { mode: 'signing', message: 'جاري تسجيل الدخول' };
+    return { mode: 'ready', message: 'Firestore جاهز. تبدأ المزامنة المباشرة بعد تسجيل الدخول.' };
   });
   const dataRef = useRef(data);
   const allowDeleteRef = useRef(false);
@@ -188,8 +223,9 @@ export function StoreProvider({ children }) {
   };
 
   useEffect(() => {
-    document.documentElement.dataset.theme = data.theme || 'orchid';
-  }, [data.theme]);
+    document.documentElement.dataset.theme = activeTheme(data.theme);
+    document.documentElement.dataset.mode = data.mode === 'night' ? 'night' : 'day';
+  }, [data.theme, data.mode]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -209,7 +245,18 @@ export function StoreProvider({ children }) {
   }, [session]);
 
   useEffect(() => {
+    if (!session?.nationalId) return;
+    const allowed = session.role === 'student'
+      ? registeredStudent(data, session.nationalId)
+      : registeredStaff(data, session.nationalId);
+    if (allowed) return;
+    setSession(null);
+    cloudSignOut().catch(() => {});
+  }, [session, data.students, data.users]);
+
+  useEffect(() => {
     if (!session || !isFirebaseConfigured()) return undefined;
+    setCloud((current) => (current.mode === 'error' || current.mode === 'synced' ? current : { mode: 'signing', message: 'جاري تسجيل الدخول' }));
     let stopListen = () => {};
     const stopAuth = watchAuth((user) => {
       stopListen();
@@ -220,11 +267,22 @@ export function StoreProvider({ children }) {
           const allowDelete = allowDeleteRef.current && session.role !== 'student';
           const next = { ...current };
           if (partial.settings) {
-            const { defaultPassword, ...general } = partial.settings;
-            next.settings = { ...current.settings, ...general, defaultPassword: current.settings.defaultPassword };
+            const { defaultPassword, gateway, ...general } = partial.settings;
+            next.settings = {
+              ...current.settings,
+              ...general,
+              defaultPassword: current.settings.defaultPassword,
+              gateway: current.settings.gateway,
+            };
+            void gateway;
           }
-          if (partial.security?.defaultPassword) {
-            next.settings = { ...next.settings, defaultPassword: partial.security.defaultPassword, updatedAt: partial.security.updatedAt || next.settings.updatedAt };
+          if (partial.security?.defaultPassword || partial.security?.gateway) {
+            next.settings = {
+              ...next.settings,
+              defaultPassword: partial.security.defaultPassword || next.settings.defaultPassword,
+              gateway: partial.security.gateway ? normalizeGateway(partial.security.gateway) : next.settings.gateway,
+              updatedAt: partial.security.updatedAt || next.settings.updatedAt,
+            };
           }
           if (partial.students) next.students = mergeList(current.students, partial.students, 'nationalId', allowDelete);
           if (partial.courses) next.courses = mergeList(current.courses, partial.courses, 'id', allowDelete);
@@ -269,6 +327,15 @@ export function StoreProvider({ children }) {
   };
 
   const connectCloud = async (person, password, kind) => {
+    const allowed = kind === 'student'
+      ? registeredStudent(dataRef.current, person.nationalId)
+      : registeredStaff(dataRef.current, person.nationalId);
+    if (!allowed) {
+      setSession(null);
+      setCloud({ mode: 'error', message: UNREGISTERED });
+      return;
+    }
+    setCloud({ mode: 'signing', message: 'جاري تسجيل الدخول' });
     const result = await signInCloud(person.nationalId, password, kind);
     if (!result.ok) {
       if (result.message) setCloud({ mode: 'error', message: result.message });
@@ -317,10 +384,10 @@ export function StoreProvider({ children }) {
       if (id.length !== 10) return { ok: false, message: 'السجل المدني يجب أن يتكون من 10 أرقام.' };
       const locked = guardAttempt(id);
       if (locked) return { ok: false, message: locked };
-      const user = dataRef.current.users.find((item) => item.nationalId === id && item.role !== 'student');
+      const user = registeredStaff(dataRef.current, id);
       if (!user) {
         markAttempt(id, false);
-        return { ok: false, message: 'غير مصرح بالدخول. هذا السجل غير مسجل في النظام.' };
+        return { ok: false, message: UNREGISTERED };
       }
       const expected = user.usesDefaultPassword ? dataRef.current.settings.defaultPassword : user.password;
       if (password !== expected) {
@@ -342,8 +409,8 @@ export function StoreProvider({ children }) {
       loginStudent: async (nationalId) => {
         const id = normalizeId(nationalId);
         if (id.length !== 10) return { ok: false, message: 'السجل المدني يجب أن يتكون من 10 أرقام.' };
-        const student = dataRef.current.students.find((item) => item.nationalId === id);
-        if (!student) return { ok: false, message: 'غير مصرح. السجل غير موجود ضمن الطالبات.' };
+        const student = registeredStudent(dataRef.current, id);
+        if (!student) return { ok: false, message: UNREGISTERED };
         const person = { ...student, role: 'student', job: 'طالبة' };
         setSession(sessionFrom(person));
         await connectCloud(person, id, 'student');
@@ -352,8 +419,8 @@ export function StoreProvider({ children }) {
       loginWithFingerprint: async () => {
         try {
           const saved = await loginWithDeviceFingerprint();
-          const user = dataRef.current.users.find((item) => item.nationalId === saved.nationalId);
-          const student = dataRef.current.students.find((item) => item.nationalId === saved.nationalId);
+          const user = registeredStaff(dataRef.current, saved.nationalId);
+          const student = registeredStudent(dataRef.current, saved.nationalId);
           if (user) {
             setSession(sessionFrom(user));
             const password = user.usesDefaultPassword ? dataRef.current.settings.defaultPassword : user.password;
@@ -389,7 +456,8 @@ export function StoreProvider({ children }) {
         }
       },
       acceptPrivacy: () => commit({ ...dataRef.current, privacyAccepted: true }),
-      setTheme: (theme) => commit({ ...dataRef.current, theme }),
+      setTheme: (theme) => commit({ ...dataRef.current, theme: activeTheme(theme) }),
+      setMode: (mode) => commit({ ...dataRef.current, mode: mode === 'night' ? 'night' : 'day' }),
       updateSettings: (patch) => {
         const current = dataRef.current;
         const settings = { ...current.settings, updatedAt: nowIso() };
@@ -401,10 +469,10 @@ export function StoreProvider({ children }) {
           users = users.map((user) => user.usesDefaultPassword ? { ...user, password: patch.defaultPassword, updatedAt: nowIso() } : user);
         }
         commit({ ...current, settings, users });
-        const { defaultPassword, ...general } = settings;
+        const parts = cloudSettings(settings);
         cloudTask(() => Promise.all([
-          writeCloud('settings', 'general', general),
-          writeCloud('settings', 'security', { defaultPassword, updatedAt: settings.updatedAt }),
+          writeCloud('settings', 'general', parts.general),
+          writeCloud('settings', 'security', parts.security),
         ]));
       },
       saveDirectorSignature: (patch) => {
@@ -419,8 +487,22 @@ export function StoreProvider({ children }) {
         const current = dataRef.current;
         const settings = { ...current.settings, ...next, updatedAt: nowIso() };
         commit({ ...current, settings });
-        const { defaultPassword, ...general } = settings;
-        cloudTask(() => writeCloud('settings', 'general', general));
+        cloudTask(() => writeCloud('settings', 'general', cloudSettings(settings).general));
+        return { ok: true };
+      },
+      saveTrainerSignature: (signature) => {
+        if (session?.role !== 'trainer') return { ok: false, message: 'التوقيع متاح لحساب المدرب أو المدربة فقط.' };
+        const value = signature || '';
+        if (value && String(value).length > 700000) {
+          return { ok: false, message: 'صورة التوقيع أكبر من المناسب. استخدم صورة أصغر.' };
+        }
+        const current = dataRef.current;
+        const mine = current.users.find((user) => user.nationalId === session.nationalId);
+        if (!mine) return { ok: false, message: 'حساب المدرب غير موجود.' };
+        const saved = { ...mine, signature: value, updatedAt: nowIso() };
+        const users = current.users.map((user) => user.nationalId === saved.nationalId ? saved : user);
+        commit({ ...current, users });
+        cloudTask(() => ensureProfile(saved));
         return { ok: true };
       },
       saveOnWeb: async () => {
@@ -523,6 +605,7 @@ export function StoreProvider({ children }) {
           joinDate: staff.joinDate || todayISO(),
           password: prev?.password || current.settings.defaultPassword,
           usesDefaultPassword: prev ? prev.usesDefaultPassword : true,
+          signature: prev?.signature || '',
           updatedAt: nowIso(),
         };
         const users = prev
@@ -587,7 +670,7 @@ export function StoreProvider({ children }) {
       recoverPassword: (nationalId, email) => {
         const id = normalizeId(nationalId);
         const current = dataRef.current;
-        const user = current.users.find((item) => item.nationalId === id && item.role !== 'student');
+        const user = registeredStaff(current, id);
         if (!user?.email || user.email.toLowerCase() !== String(email || '').trim().toLowerCase()) {
           return { ok: false, message: 'السجل المدني والبريد غير متطابقين.' };
         }
@@ -761,14 +844,16 @@ export function StoreProvider({ children }) {
         ]));
         return { ok: true, message: 'أُرسل إشعار الاستلام إلى النظام.' };
       },
-      issueCertificate: ({ student, action, byRole }) => {
+      issueCertificate: ({ student, action, byRole, kind = 'appreciation' }) => {
         const current = dataRef.current;
+        const certificateKind = kind === 'completion' ? 'completion' : 'appreciation';
         const record = {
           id: uid('cert'),
           studentId: student.nationalId,
           nationalId: student.nationalId,
           studentName: student.name,
           grade: student.grade,
+          kind: certificateKind,
           action,
           byRole: byRole || session?.role || 'staff',
           byName: session?.name || student.name,
@@ -795,6 +880,7 @@ export function StoreProvider({ children }) {
           ...item,
           certificatePrinted: action === 'printed' ? true : item.certificatePrinted,
           certificateEmailed: action === 'emailed' ? true : item.certificateEmailed,
+          certificateKind,
           lastPrintedAt: nowIso(),
         } : item);
         commit({ ...current, certificates: [record, ...current.certificates], messages, students });

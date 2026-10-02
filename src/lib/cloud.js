@@ -1,6 +1,7 @@
 import { createUserWithEmailAndPassword, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { collection, deleteDoc, doc, onSnapshot, query, setDoc, where } from 'firebase/firestore';
 import { auth, authEmail, db, ensureFirebase, getSecondaryAuth, isFirebaseConfigured } from '../firebase';
+import { cloudSettings } from './gateway';
 
 export function canSync() {
   ensureFirebase();
@@ -91,9 +92,9 @@ export async function removeCloud(collectionName, id) {
 
 export async function pushSnapshot(state) {
   if (!canSync()) return;
-  const { defaultPassword, ...general } = state.settings;
-  await writeCloud('settings', 'general', general);
-  await writeCloud('settings', 'security', { defaultPassword, updatedAt: new Date().toISOString() });
+  const parts = cloudSettings(state.settings);
+  await writeCloud('settings', 'general', parts.general);
+  await writeCloud('settings', 'security', parts.security);
   await writeChunks(state.students, 40, (student) => writeCloud('students', student.nationalId, { ...student, id: student.nationalId }));
   await writeChunks(state.courses, 40, (course) => writeCloud('courses', course.id, course));
   await writeChunks(state.messages, 40, (message) => writeCloud('messages', message.id, message));
@@ -128,6 +129,12 @@ export function subscribe(session, onData, onError) {
   const stops = [];
   const student = session.role === 'student';
 
+  if (session.role === 'trainer') {
+    const uid = auth?.currentUser?.uid;
+    if (uid) stops.push(watch(doc(db, 'users', uid), (rows) => onData({ users: rows }), onError));
+    return () => stops.forEach((stop) => stop());
+  }
+
   stops.push(watch(doc(db, 'settings', 'general'), (rows) => onData({ settings: rows[0] || null }), onError));
   if (!student) {
     stops.push(watch(doc(db, 'settings', 'security'), (rows) => onData({ security: rows[0] || null }), onError));
@@ -155,6 +162,7 @@ export function subscribe(session, onData, onError) {
     stops.push(watch(collection(db, 'archive'), (rows) => onData({ archive: rows }), onError));
   } else {
     stops.push(watch(collection(db, 'courses'), (rows) => onData({ courses: rows }), onError));
+    stops.push(watch(query(collection(db, 'users'), where('role', '==', 'trainer')), (rows) => onData({ users: rows }), onError));
   }
 
   return () => stops.forEach((stop) => stop());
