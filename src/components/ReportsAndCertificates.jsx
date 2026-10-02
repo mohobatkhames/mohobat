@@ -164,7 +164,7 @@ export default function ReportsAndCertificates() {
                 <button className="btn-primary" type="button" onClick={() => { issueCertificate({ student: active, action: 'printed', byRole: 'staff' }); window.print(); }}>طباعة وتوثيق</button>
                 <button className="btn-ghost" type="button" onClick={() => setActive(null)}>إغلاق المعاينة</button>
               </div>
-              <Certificate settings={data.settings} student={active} courses={data.courses} />
+              <Certificate settings={data.settings} student={active} courses={data.courses} users={data.users} />
             </div>
           )}
         </section>

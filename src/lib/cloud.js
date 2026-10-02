@@ -7,10 +7,20 @@ export function canSync() {
 }
 
 function clean(record) {
+  if (Array.isArray(record)) return record.map(clean);
   if (!record || typeof record !== 'object') return record;
-  const copy = { ...record };
-  delete copy.password;
+  const copy = {};
+  for (const [key, value] of Object.entries(record)) {
+    if (key === 'password' || key === 'pendingSync' || value === undefined) continue;
+    copy[key] = clean(value);
+  }
   return copy;
+}
+
+async function writeChunks(items, size, write) {
+  for (let index = 0; index < items.length; index += size) {
+    await Promise.all(items.slice(index, index + size).map(write));
+  }
 }
 
 export async function signInCloud(nationalId, password, kind) {
@@ -79,16 +89,13 @@ export async function removeCloud(collectionName, id) {
 export async function pushSnapshot(state) {
   if (!canSync()) return;
   const { defaultPassword, ...general } = state.settings;
-  const tasks = [
-    writeCloud('settings', 'general', general),
-    writeCloud('settings', 'security', { defaultPassword, updatedAt: new Date().toISOString() }),
-    ...state.students.map((student) => writeCloud('students', student.nationalId, { ...student, id: student.nationalId })),
-    ...state.courses.map((course) => writeCloud('courses', course.id, course)),
-    ...state.messages.map((message) => writeCloud('messages', message.id, message)),
-    ...state.certificates.map((item) => writeCloud('certificates', item.id, item)),
-    ...Object.entries(state.attendance).map(([date, absent]) => writeCloud('attendance', date, { date, absent, updatedAt: new Date().toISOString() })),
-  ];
-  await Promise.all(tasks);
+  await writeCloud('settings', 'general', general);
+  await writeCloud('settings', 'security', { defaultPassword, updatedAt: new Date().toISOString() });
+  await writeChunks(state.students, 40, (student) => writeCloud('students', student.nationalId, { ...student, id: student.nationalId }));
+  await writeChunks(state.courses, 40, (course) => writeCloud('courses', course.id, course));
+  await writeChunks(state.messages, 40, (message) => writeCloud('messages', message.id, message));
+  await writeChunks(state.certificates, 40, (item) => writeCloud('certificates', item.id, item));
+  await writeChunks(Object.entries(state.attendance), 40, ([date, absent]) => writeCloud('attendance', date, { date, absent, updatedAt: new Date().toISOString() }));
 }
 
 function revive(value) {

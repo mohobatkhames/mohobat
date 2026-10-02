@@ -1,3 +1,41 @@
+import { useState } from 'react';
+
+function LensIcon({ open }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="10" cy="10" r="5.2" fill={open ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8" />
+      <path d="M14.2 14.2 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      {open && <circle cx="10" cy="10" r="1.7" fill="white" />}
+    </svg>
+  );
+}
+
+export function PasswordField({ value, onChange, required = false, placeholder = '••••••', autoComplete = 'current-password' }) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="password-field" dir="ltr">
+      <input
+        className="field"
+        type={visible ? 'text' : 'password'}
+        required={required}
+        value={value}
+        autoComplete={autoComplete}
+        placeholder={placeholder}
+        onChange={onChange}
+      />
+      <button
+        className="password-lens"
+        type="button"
+        aria-label={visible ? 'إخفاء كلمة المرور' : 'معاينة كلمة المرور'}
+        aria-pressed={visible}
+        onClick={() => setVisible((current) => !current)}
+      >
+        <LensIcon open={visible} />
+      </button>
+    </div>
+  );
+}
+
 export function Modal({ title, onClose, children }) {
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">

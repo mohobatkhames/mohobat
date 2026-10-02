@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useStore } from '../context/Store';
 import { fingerprintSupported, savedFingerprint } from '../lib/webauthn';
-import { Banner } from './ui';
+import InstallApp from './InstallApp';
+import { Banner, PasswordField } from './ui';
 
 export default function Login() {
   const { loginStaff, loginStudent, loginWithFingerprint, recoverPassword, data } = useStore();
@@ -58,21 +59,21 @@ export default function Login() {
   };
 
   return (
-    <div className="bg-app flex min-h-screen items-center justify-center p-4" dir="rtl">
-      <div className="card w-full max-w-md p-8">
-        <div className="mb-6 text-center">
+    <div className="login-screen bg-app" dir="rtl">
+      <div className="card login-card">
+        <div className="mb-5 text-center">
           <div className="text-4xl">✦</div>
-          <h1 className="mt-2 text-2xl font-extrabold">نظام موهوبات الإلكتروني</h1>
-          <p className="mt-1 text-sm text-mute">{data.settings.administrationName}</p>
-          <p className="text-sm text-mute">{data.settings.centerName}</p>
+          <h1 className="mt-2 text-xl font-extrabold leading-snug sm:text-2xl">نظام موهوبات الإلكتروني</h1>
+          <p className="mt-1 text-sm leading-6 text-mute">{data.settings.administrationName}</p>
+          <p className="text-sm leading-6 text-mute">{data.settings.centerName}</p>
         </div>
 
-        <div className="mb-6 grid grid-cols-2 gap-1 rounded-2xl bg-[var(--soft)] p-1">
+        <div className="login-tabs">
           <button type="button" className={tab === 'admin' ? 'btn-primary' : 'btn-ghost'} onClick={() => { setTab('admin'); setRecover(false); }}>
-            مسؤول النظام / المعلمات
+            منسوبات المركز
           </button>
           <button type="button" className={tab === 'student' ? 'btn-primary' : 'btn-ghost'} onClick={() => { setTab('student'); setRecover(false); }}>
-            دخول الطالبات
+            دخول الموهوبات
           </button>
         </div>
 
@@ -85,7 +86,7 @@ export default function Login() {
           {tab === 'admin' && !recover && (
             <label className="block">
               <span className="label">كلمة المرور</span>
-              <input className="field" dir="ltr" type="password" required value={password} onChange={(event) => setPassword(event.target.value)} placeholder="••••••" />
+              <PasswordField required value={password} onChange={(event) => setPassword(event.target.value)} />
               <button type="button" className="mt-2 text-sm font-bold text-[var(--primary)]" onClick={() => { setRecover(true); setError(''); }}>
                 استعادة كلمة المرور عبر البريد؟
               </button>
@@ -108,7 +109,7 @@ export default function Login() {
         </form>
 
         {tab === 'admin' && (
-          <button className="btn-soft mt-4 w-full" type="button" onClick={fingerprint} disabled={busy}>
+          <button className="btn-soft mt-4 w-full whitespace-normal leading-7" type="button" onClick={fingerprint} disabled={busy}>
             الدخول السريع بالبصمة {savedFingerprint() ? '' : '(بعد تسجيلها من داخل النظام)'}
           </button>
         )}
@@ -117,8 +118,9 @@ export default function Login() {
           <button className="btn-ghost mt-3 w-full" type="button" onClick={() => setRecover(false)}>العودة لتسجيل الدخول</button>
         )}
 
-        <p className="mt-6 border-t border-[var(--line)] pt-4 text-center text-xs text-mute">
-          يُقبل دخول المالك ومسؤولات النظام والطالبات المسجلات فقط. جميع الحقوق محفوظة © {data.settings.centerName}
+        <InstallApp />
+        <p className="mt-4 border-t border-[var(--line)] pt-4 text-center text-xs leading-6 text-mute">
+          صمم لمركز الموهوبات بخميس مشيط © جميع الحقوق محفوظة
         </p>
       </div>
     </div>

@@ -10,7 +10,8 @@ import ReportsAndCertificates from './ReportsAndCertificates';
 import SettingsPanel from './SettingsPanel';
 import Staff from './Staff';
 import Students from './Students';
-import { Banner, Field, Modal } from './ui';
+import InstallApp from './InstallApp';
+import { Banner, Field, Modal, PasswordField } from './ui';
 
 const PAGES = [
   ['dashboard', 'الرئيسية', Dashboard],
@@ -82,8 +83,8 @@ export default function Layout() {
           <div className="flex min-w-0 w-full items-center gap-3 lg:w-auto lg:flex-1">
             <button className="btn-ghost shrink-0 lg:hidden" type="button" onClick={() => setOpen((value) => !value)}>القائمة</button>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm text-mute">{store.data.settings.administrationName}</p>
-              <p className="truncate font-extrabold">{store.session.name} · {ROLE_LABELS[store.session.role]}</p>
+              <p className="text-sm leading-6 text-mute">{store.data.settings.administrationName}</p>
+              <p className="break-words font-extrabold leading-7">{store.session.name} · {ROLE_LABELS[store.session.role]}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -98,6 +99,7 @@ export default function Layout() {
                 style={{ background: theme.id === 'rose' ? '#e11d48' : theme.id === 'lilac' ? '#6d5efc' : theme.id === 'blossom' ? '#f472b6' : theme.id === 'dusk' ? '#6b21a8' : '#7c3aed', outline: store.data.theme === theme.id ? '2px solid var(--text)' : 'none' }}
               />
             ))}
+            <InstallApp compact />
             <button className="btn-soft" type="button" onClick={() => setAccount(true)}>حسابي</button>
             <button className="btn-ghost" type="button" onClick={store.logout}>خروج</button>
           </div>
@@ -119,10 +121,10 @@ export default function Layout() {
             {notice && <Banner>{notice}</Banner>}
             <form className="grid gap-3 md:grid-cols-2" onSubmit={savePassword}>
               <Field label="كلمة المرور الحالية">
-                <input className="field" dir="ltr" type="password" value={passwords.current} onChange={(event) => setPasswords({ ...passwords, current: event.target.value })} />
+                <PasswordField autoComplete="current-password" value={passwords.current} onChange={(event) => setPasswords({ ...passwords, current: event.target.value })} />
               </Field>
               <Field label="كلمة المرور الجديدة">
-                <input className="field" dir="ltr" type="password" value={passwords.next} onChange={(event) => setPasswords({ ...passwords, next: event.target.value })} />
+                <PasswordField autoComplete="new-password" value={passwords.next} onChange={(event) => setPasswords({ ...passwords, next: event.target.value })} />
               </Field>
               <button className="btn-primary md:col-span-2" type="submit">تغيير كلمة المرور</button>
             </form>

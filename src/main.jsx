@@ -28,6 +28,12 @@ class Boundary extends React.Component {
   }
 }
 
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <Boundary>

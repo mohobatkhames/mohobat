@@ -3,6 +3,7 @@ import { THEMES } from '../lib/constants';
 import { formatTime } from '../lib/dates';
 import { useStore } from '../context/Store';
 import Certificate from './Certificate';
+import InstallApp from './InstallApp';
 import { Banner, Empty } from './ui';
 
 export default function StudentPortal() {
@@ -27,10 +28,10 @@ export default function StudentPortal() {
   return (
     <div className="bg-app min-h-screen" dir="rtl">
       <header className="no-print mx-auto flex max-w-5xl flex-wrap items-center gap-3 px-4 py-5">
-        <div className="min-w-0 w-full sm:w-auto sm:flex-1">
-          <p className="text-sm text-[var(--accent)]">{store.data.settings.centerName}</p>
-          <h1 className="truncate text-2xl font-extrabold">بوابة الطالبة الموهوبة</h1>
-          <p className="text-sm text-mute">مرحباً بك {student.name}</p>
+        <div className="w-full sm:min-w-0 sm:flex-1">
+          <p className="text-sm leading-6 text-[var(--accent)]">{store.data.settings.centerName}</p>
+          <h1 className="text-2xl font-extrabold leading-snug">بوابة الطالبة الموهوبة</h1>
+          <p className="break-words text-sm leading-6 text-mute">مرحباً بك {student.name}</p>
         </div>
         <div className="flex gap-2">
           {THEMES.map((theme) => (
@@ -39,6 +40,7 @@ export default function StudentPortal() {
         </div>
         <button className="btn-ghost" type="button" onClick={store.logout}>خروج</button>
       </header>
+      <div className="no-print mx-auto max-w-5xl px-4"><InstallApp /></div>
       <main className="mx-auto grid max-w-5xl gap-4 px-4 pb-10 lg:grid-cols-[.9fr_1.1fr]">
         <section className="no-print card p-5">
           <h2 className="mb-3 text-xl font-extrabold">الرسائل</h2>
@@ -62,7 +64,7 @@ export default function StudentPortal() {
             <p className="mt-1 text-sm leading-7 text-mute">يمكنك طباعتها مباشرة، ويصل إشعار للنظام عند إغلاق نافذة الطباعة.</p>
             <button className="btn-primary mt-3" type="button" onClick={printCertificate}>طباعة الشهادة</button>
           </div>
-          <Certificate settings={store.data.settings} student={student} courses={store.data.courses} />
+          <Certificate settings={store.data.settings} student={student} courses={store.data.courses} users={store.data.users} />
         </section>
       </main>
     </div>

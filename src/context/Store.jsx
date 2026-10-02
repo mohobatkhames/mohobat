@@ -113,14 +113,15 @@ function mergeList(current = [], incoming = [], key, allowDelete) {
     if (!id) continue;
     seen.add(id);
     const prev = map.get(id);
-    if (!prev || newer(item, prev)) map.set(id, { ...prev, ...item, password: prev?.password ?? item.password });
+    if (!prev || newer(item, prev)) {
+      const next = { ...prev, ...item, password: prev?.password ?? item.password };
+      delete next.pendingSync;
+      map.set(id, next);
+    }
   }
   if (allowDelete) {
     for (const id of [...map.keys()]) {
-      if (!seen.has(id)) {
-        const age = Date.now() - new Date(map.get(id)?.updatedAt || 0).getTime();
-        if (age > 8000) map.delete(id);
-      }
+      if (!seen.has(id) && !map.get(id)?.pendingSync) map.delete(id);
     }
   }
   return [...map.values()];
@@ -246,8 +247,9 @@ export function StoreProvider({ children }) {
     try {
       await task();
       setCloud({ mode: 'synced', message: 'تم الحفظ محلياً ومزامنته مع Firestore.' });
-    } catch {
-      setCloud({ mode: 'error', message: 'تم الحفظ محلياً، وتعذرت المزامنة السحابية.' });
+    } catch (error) {
+      const detail = error?.code || error?.message || '';
+      setCloud({ mode: 'error', message: detail ? `تم الحفظ محلياً، وتعذرت المزامنة السحابية: ${detail}` : 'تم الحفظ محلياً، وتعذرت المزامنة السحابية.' });
     }
   };
 
@@ -398,8 +400,9 @@ export function StoreProvider({ children }) {
           nationalId,
           name: student.name.trim(),
           id: nationalId,
-          score: student.score === '' || student.score == null ? '' : Number(student.score),
+          score: student.score === '' || student.score == null || Number.isNaN(Number(student.score)) ? '' : Number(student.score),
           updatedAt: nowIso(),
+          pendingSync: true,
         };
         const exists = current.students.some((item) => item.nationalId === nationalId);
         const students = exists
@@ -419,15 +422,16 @@ export function StoreProvider({ children }) {
         const map = new Map(current.students.map((student) => [student.nationalId, student]));
         const imported = [];
         for (const row of rows) {
-          const record = { ...map.get(row.nationalId), ...row, id: row.nationalId, updatedAt: nowIso() };
+          const record = { ...map.get(row.nationalId), ...row, id: row.nationalId, updatedAt: nowIso(), pendingSync: true };
           map.set(row.nationalId, record);
           imported.push(record);
         }
         commit({ ...current, students: [...map.values()] });
-        cloudTask(() => Promise.all(imported.map(async (student) => {
-          await writeCloud('students', student.nationalId, student);
-          await provisionAccount(student.nationalId, student.nationalId, { ...student, role: 'student', job: 'طالبة' }, 'student');
-        })));
+        cloudTask(async () => {
+          for (let index = 0; index < imported.length; index += 40) {
+            await Promise.all(imported.slice(index, index + 40).map((student) => writeCloud('students', student.nationalId, student)));
+          }
+        });
         return imported.length;
       },
       saveStaff: (staff) => {

@@ -14,6 +14,7 @@ const types = {
   '.jpeg': 'image/jpeg',
   '.webp': 'image/webp',
   '.json': 'application/json; charset=utf-8',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
   '.ico': 'image/x-icon',
   '.woff2': 'font/woff2',
 };
@@ -49,7 +50,10 @@ function publicEnv() {
 function sendFile(res, file) {
   const data = fs.readFileSync(file);
   const ext = path.extname(file);
-  const cache = ext === '.html' ? 'no-cache' : 'public, max-age=31536000, immutable';
+  const name = path.basename(file);
+  const cache = ext === '.html' || name === 'sw.js' || ext === '.webmanifest'
+    ? 'no-cache'
+    : 'public, max-age=31536000, immutable';
   res.writeHead(200, {
     'Content-Type': types[ext] || 'application/octet-stream',
     'Cache-Control': cache,

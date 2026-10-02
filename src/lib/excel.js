@@ -18,9 +18,12 @@ function matchField(key) {
   if (name.includes('ولي') && (name.includes('جوال') || name.includes('هاتف') || name.includes('phone'))) return 'guardianPhone';
   if (name.includes('ولي')) return 'guardian';
   if (name.includes('سجل') || name.includes('هويه') || name === 'id' || name === 'nationalid') return 'nationalId';
-  if (name.includes('جنس') || name.includes('نوع') || name === 'gender' || name === 'sex') return 'gender';
-  if (name.includes('صف') || name.includes('مرحله') || name === 'grade' || name === 'class') return 'grade';
-  if (name.includes('مدرس') || name === 'school') return 'school';
+  if ((name.includes('جنس') || name === 'gender' || name === 'sex') && !name.includes('جنسي')) return 'gender';
+  if (name.includes('صف') || name === 'grade' || name === 'class') return 'grade';
+  if (name.includes('مرحله')) return 'stage';
+  if ((name.includes('مدرس') || name === 'school') && !name.includes('نوع') && !name.includes('تصنيف') && !name.includes('احص')) {
+    return name.includes('تحديث') ? 'schoolUpdated' : 'school';
+  }
   if (name.includes('بريد') || name.includes('email')) return 'email';
   if (name.includes('جوال') || name.includes('هاتف') || name.includes('phone') || name.includes('mobile')) return 'phone';
   if (name.includes('درج') || name.includes('معدل') || name.includes('score')) return 'score';
@@ -50,12 +53,12 @@ function canonicalGrade(value) {
 
 function isMale(value) {
   const text = normKey(value);
-  return ['ذكر', 'طالب', 'ذكور', 'طلاب', 'male', 'm', 'boy'].includes(text);
+  return ['ذكر', 'طالب', 'ذكور', 'طلاب', 'بنين', 'بنون', 'ولد', 'اولاد', 'male', 'm', 'boy'].includes(text);
 }
 
 function isFemale(value) {
   const text = normKey(value);
-  return ['انثي', 'انثى', 'طالبه', 'طالبات', 'female', 'f', 'girl', 'بنت'].includes(text);
+  return ['انثي', 'انثى', 'اناث', 'طالبه', 'طالبات', 'بنات', 'بنت', 'female', 'f', 'girl'].includes(text);
 }
 
 function mapRow(row) {
@@ -85,16 +88,18 @@ export function parseStudentsWorkbook(data) {
       continue;
     }
     const scoreText = toEnglishDigits(row.score).replace(/[^\d.]/g, '');
+    const score = scoreText === '' ? '' : Number(scoreText);
+    const school = String(row.schoolUpdated || row.school || '').trim();
     students.push({
       nationalId,
       name,
-      grade: canonicalGrade(row.grade),
-      school: String(row.school || '').trim(),
+      grade: canonicalGrade(row.grade || row.stage),
+      school,
       phone: toEnglishDigits(row.phone).replace(/[^\d+]/g, ''),
       email: String(row.email || '').trim(),
       guardian: String(row.guardian || '').trim(),
       guardianPhone: toEnglishDigits(row.guardianPhone).replace(/[^\d+]/g, ''),
-      score: scoreText === '' ? '' : Number(scoreText),
+      score: Number.isFinite(score) ? score : '',
     });
   }
 
