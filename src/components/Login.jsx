@@ -62,8 +62,7 @@ export default function Login() {
     <div className="login-screen bg-app" dir="rtl">
       <div className="card login-card">
         <div className="mb-5 text-center">
-          <div className="text-4xl">✦</div>
-          <h1 className="mt-2 text-xl font-extrabold leading-snug sm:text-2xl">نظام موهوبات الإلكتروني</h1>
+          <h1 className="text-xl font-extrabold leading-snug sm:text-2xl">نظام موهوبات الإلكتروني</h1>
           <p className="mt-1 text-sm leading-6 text-mute">{data.settings.administrationName}</p>
           <p className="text-sm leading-6 text-mute">{data.settings.centerName}</p>
         </div>
