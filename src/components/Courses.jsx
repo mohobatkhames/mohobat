@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { formatBoth } from '../lib/dates';
 import { isAttending, isInvited } from '../lib/course';
 import { useStore } from '../context/Store';
 import Composer from './Composer';
@@ -59,7 +60,10 @@ export default function Courses() {
             </select>
           </Field>
           <Field label="ساعات التدريب"><input className="field" dir="ltr" type="number" min="1" value={form.hours} onChange={set('hours')} /></Field>
-          <Field label="تاريخ التنفيذ"><input className="field" type="date" value={form.date} onChange={set('date')} /></Field>
+          <Field label="تاريخ التنفيذ">
+            <input className="field" type="date" value={form.date} onChange={set('date')} />
+            {form.date ? <span className="mt-1 block text-xs leading-6 text-mute">{formatBoth(form.date)}</span> : null}
+          </Field>
           <Field label="المدرب / المدربة"><input className="field" value={form.trainer} onChange={set('trainer')} /></Field>
           <Field label="الصف"><GradeSelect value={form.grade} onChange={(value) => setForm({ ...form, grade: value })} /></Field>
           <div className="md:col-span-3"><button className="btn-primary" type="submit">حفظ الدورة</button></div>
@@ -72,7 +76,7 @@ export default function Courses() {
           <button key={course.id} className={`card p-4 text-right ${activeId === course.id ? 'outline outline-2 outline-[var(--primary)]' : ''}`} type="button" onClick={() => { setActiveId(course.id); setForm({ ...course }); }}>
             <b>{course.name}</b>
             <p className="mt-2 text-sm text-mute">{course.place} · {course.hours || '—'} ساعة · {course.grade}</p>
-            <p className="text-sm text-mute">{course.weekday} · {course.hijri}</p>
+            <p className="text-sm text-mute">{course.date ? formatBoth(course.date) : (course.hijri || '—')}</p>
           </button>
         ))}
       </section>
@@ -82,7 +86,7 @@ export default function Courses() {
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="text-xl font-extrabold">{active.name}</h3>
-              <p className="text-sm text-mute">المدربة: {active.trainer || '—'} · {active.weekday} {active.hijri}</p>
+              <p className="text-sm text-mute">المدربة: {active.trainer || '—'} · {active.date ? formatBoth(active.date) : (active.hijri || '—')}</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <button className="btn-primary" type="button" onClick={() => openComposer('internal')}>إنشاء رسالة</button>

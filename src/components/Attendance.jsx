@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { formatGregorian, todayISO } from '../lib/dates';
+import { formatBoth, todayISO } from '../lib/dates';
 import { useStore } from '../context/Store';
+import WhatsAppSend from './WhatsAppSend';
 import { Empty, GradeSelect } from './ui';
 
 export default function Attendance() {
@@ -21,8 +22,13 @@ export default function Attendance() {
           <span className="label">الصف</span>
           <GradeSelect includeAll value={grade} onChange={setGrade} />
         </label>
-        <p className="pb-3 text-sm text-mute">{formatGregorian(date)} · الغياب بالضغط على الاسم</p>
+        <p className="pb-3 text-sm text-mute">{formatBoth(date)} · الغياب بالضغط على الاسم</p>
       </section>
+      <WhatsAppSend
+        students={students}
+        title="واتساب الحضور والغياب"
+        preset={`بيان الحضور والغياب لتاريخ ${formatBoth(date)}${grade === 'الكل' ? '' : ` · ${grade}`}`}
+      />
       {students.length === 0 ? <Empty text="لا توجد طالبات في هذا الصف." /> : (
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {students.map((student) => {

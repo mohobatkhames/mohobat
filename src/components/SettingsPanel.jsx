@@ -1,10 +1,15 @@
 import { useState } from 'react';
+import { DEFAULT_WHATSAPP_NUMBER, whatsappPhone } from '../lib/whatsapp';
 import { useStore } from '../context/Store';
 import { Banner, Field } from './ui';
 
 export default function SettingsPanel() {
-  const { data, updateSettings, backup, restore, canManage } = useStore();
-  const [form, setForm] = useState(data.settings);
+  const { data, session, updateSettings, backup, restore, canManage } = useStore();
+  const [form, setForm] = useState({
+    ...data.settings,
+    whatsappNumber: data.settings.whatsappNumber || DEFAULT_WHATSAPP_NUMBER,
+  });
+  const director = session?.role === 'director';
   const [message, setMessage] = useState('');
   if (!canManage) return <Banner tone="bad">هذه الصفحة متاحة للمالك ومديرة المركز ومسؤولات النظام.</Banner>;
 
@@ -14,7 +19,12 @@ export default function SettingsPanel() {
       setMessage('كلمة المرور الافتراضية لا تقل عن 6 خانات.');
       return;
     }
-    updateSettings(form);
+    const whatsappNumber = whatsappPhone(director ? form.whatsappNumber : (data.settings.whatsappNumber || DEFAULT_WHATSAPP_NUMBER));
+    if (director && !whatsappNumber) {
+      setMessage('رقم واتساب المركز غير مكتمل. مثال: 966559820932');
+      return;
+    }
+    updateSettings({ ...form, whatsappNumber: whatsappNumber || DEFAULT_WHATSAPP_NUMBER });
     setMessage('تم حفظ الإعدادات وستظهر في التقارير والشهادات.');
   };
 
@@ -45,11 +55,14 @@ export default function SettingsPanel() {
           <Field label="كلمة المرور الافتراضية للمسؤولات">
             <input className="field" dir="ltr" value={form.defaultPassword} onChange={set('defaultPassword')} />
           </Field>
+          <Field label="رقم واتساب المركز">
+            <input className="field" dir="ltr" inputMode="tel" value={form.whatsappNumber || ''} onChange={set('whatsappNumber')} disabled={!director} />
+          </Field>
           <div className="flex items-end">
             <button className="btn-primary w-full" type="submit">حفظ الإعدادات</button>
           </div>
         </form>
-        <p className="mt-3 text-sm leading-7 text-mute">تُزامَن الإعدادات مباشرة مع Firestore، وتبقى كلمة المرور الافتراضية في مستند خاص بالمسؤولات.</p>
+        <p className="mt-3 text-sm leading-7 text-mute">تُزامَن الإعدادات مباشرة مع Firestore. رقم واتساب المركز الافتراضي 966559820932، وتعديله وحفظه متاح لمديرة المركز.</p>
       </section>
       <section className="card flex flex-wrap gap-3 p-6">
         <button className="btn-soft" type="button" onClick={backup}>تنزيل نسخة احتياطية</button>

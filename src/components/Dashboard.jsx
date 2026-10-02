@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { formatGregorian, formatHijri, formatTime, todayISO } from '../lib/dates';
+import { formatBoth, formatTime, todayISO } from '../lib/dates';
 import { useStore } from '../context/Store';
 import { Banner, Empty, Field, GradeSelect } from './ui';
 
@@ -12,7 +12,7 @@ export default function Dashboard() {
   const [notice, setNotice] = useState('');
   const today = todayISO();
   const absentToday = Object.values(data.attendance[today] || {}).filter((value) => value === false).length;
-  const notices = data.messages.filter((message) => message.channel === 'print-notice').slice(0, 5);
+  const notices = data.messages.filter((message) => message.channel === 'print-notice' || message.channel === 'receipt-notice').slice(0, 8);
   const cards = [
     ['الطالبات', data.students.length],
     ['الموظفات', data.users.filter((user) => user.role !== 'owner').length],
@@ -60,11 +60,11 @@ export default function Dashboard() {
   return (
     <div className="space-y-4">
       <section className="card p-6">
-        <p className="text-sm font-bold text-[var(--accent)]">{formatGregorian(today)}</p>
+        <p className="text-sm font-bold text-[var(--accent)]">{formatBoth(today)}</p>
         <h2 className="mt-1 text-3xl font-extrabold">
           {session?.role === 'owner' ? 'أهلاً بك يا أبو نايف في نظام موهوبات' : `أهلاً بك ${session?.name || ''} في نظام موهوبات`}
         </h2>
-        <p className="mt-2 text-mute">النظام جاهز لإدارة الطالبات، الحضور، البرامج، والتقارير والشهادات. {formatHijri(today)} · {data.settings.semester} · {data.settings.academicYear}</p>
+        <p className="mt-2 text-mute">النظام جاهز لإدارة الطالبات، الحضور، البرامج، والتقارير والشهادات. {data.settings.semester} · {data.settings.academicYear}</p>
       </section>
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map(([label, value]) => (
@@ -109,8 +109,8 @@ export default function Dashboard() {
           </ul>
         </article>
         <article className="card p-5">
-          <h3 className="mb-3 text-lg font-extrabold">إشعارات طباعة الشهادات</h3>
-          {notices.length === 0 && <p className="text-sm text-mute">لا توجد طباعة من حساب طالبة بعد.</p>}
+          <h3 className="mb-3 text-lg font-extrabold">إشعارات الطالبات</h3>
+          {notices.length === 0 && <p className="text-sm text-mute">لا توجد إشعارات استلام أو طباعة من حساب طالبة بعد.</p>}
           <ul className="space-y-2">
             {notices.map((notice) => (
               <li key={notice.id} className="rounded-2xl bg-[var(--soft)] px-3 py-2 text-sm">{notice.body}</li>
@@ -194,7 +194,7 @@ export default function Dashboard() {
                       <span className="mt-1 block">{item.title}</span>
                       {item.detail && <span className="mt-1 block text-mute">{item.detail}</span>}
                     </td>
-                    <td>{formatGregorian(item.deletedAt)}</td>
+                    <td className="whitespace-normal">{formatBoth(item.deletedAt)}</td>
                     <td>{formatTime(item.deletedAt)}</td>
                     <td className="whitespace-normal">{item.reason}</td>
                   </tr>

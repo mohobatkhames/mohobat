@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { GRADES } from '../lib/constants';
+import { formatBoth } from '../lib/dates';
 import { isAttending, isInvited } from '../lib/course';
 import { navigate, pageFromPath } from '../lib/routes';
 import { useStore } from '../context/Store';
-import Certificate from './Certificate';
+import Certificate, { directorOf } from './Certificate';
+import WhatsAppSend from './WhatsAppSend';
 import { Empty, GradeSelect } from './ui';
 
 const REPORTS = [
@@ -80,6 +82,13 @@ export default function ReportsAndCertificates() {
         )}
         <button className="btn-primary" type="button" onClick={() => window.print()}>طباعة</button>
       </section>
+      {tab === 'reports' && (
+        <WhatsAppSend
+          students={students}
+          title="واتساب التقارير"
+          preset={`تقرير ${REPORTS.find((item) => item[0] === report)?.[1] || ''} · ${grade}`}
+        />
+      )}
 
       {tab === 'reports' && (
         <section className="card p-5">
@@ -93,11 +102,11 @@ export default function ReportsAndCertificates() {
           {report === 'courses' && (courses.length === 0 ? <Empty text="لا توجد برامج مطابقة." /> : (
             <div className="table-wrap">
               <table className="data">
-                <thead><tr><th>البرنامج</th><th>المكان</th><th>الساعات</th><th>اليوم</th><th>التاريخ</th><th>الهجري</th><th>المدربة</th><th>الصف</th></tr></thead>
+                <thead><tr><th>البرنامج</th><th>المكان</th><th>الساعات</th><th>اليوم</th><th>التاريخ الهجري والميلادي</th><th>المدربة</th><th>الصف</th></tr></thead>
                 <tbody>
                   {courses.map((course) => (
                     <tr key={course.id}>
-                      <td>{course.name}</td><td>{course.place}</td><td>{course.hours || '—'}</td><td>{course.weekday}</td><td dir="ltr">{course.date}</td><td>{course.hijri}</td><td>{course.trainer || '—'}</td><td>{course.grade}</td>
+                      <td>{course.name}</td><td>{course.place}</td><td>{course.hours || '—'}</td><td>{course.weekday}</td><td className="whitespace-normal">{course.date ? formatBoth(course.date) : (course.hijri || '—')}</td><td>{course.trainer || '—'}</td><td>{course.grade}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -139,6 +148,15 @@ export default function ReportsAndCertificates() {
               </div>
             );
           }))}
+          {data.settings.showSignatureOnReports && data.settings.signature && (
+            <div className="mt-8 flex justify-end">
+              <div className="text-center">
+                <img className="signature-image mx-auto" src={data.settings.signature} alt="" />
+                <p className="mt-1 font-extrabold">مديرة المركز</p>
+                <p>{directorOf(data.users)?.name || '—'}</p>
+              </div>
+            </div>
+          )}
         </section>
       )}
 

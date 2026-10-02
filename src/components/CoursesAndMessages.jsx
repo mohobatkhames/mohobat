@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { GRADES } from '../lib/constants';
-import { todayISO } from '../lib/dates';
+import { formatBoth, formatHijri, todayISO } from '../lib/dates';
 import { navigate, pageFromPath } from '../lib/routes';
 import { useStore } from '../context/Store';
+import WhatsAppSend from './WhatsAppSend';
 import { Banner, Empty } from './ui';
 
 const blankCourse = {
@@ -10,7 +11,7 @@ const blankCourse = {
   locationType: 'حضوري',
   locationName: '',
   hours: '',
-  hijriDate: '',
+  date: todayISO(),
   trainer: '',
   selectedGrade: 'الرابع الابتدائي',
   invitedStudents: {},
@@ -91,8 +92,8 @@ export default function CoursesAndMessages({ initialTab = 'courses' }) {
       locationType: courseForm.locationType,
       locationName: courseForm.locationName,
       hours: courseForm.hours,
-      date: todayISO(),
-      hijri: courseForm.hijriDate,
+      date: courseForm.date || todayISO(),
+      hijri: formatHijri(courseForm.date || todayISO()),
       trainer: courseForm.trainer,
       grade: courseForm.selectedGrade,
       invitees,
@@ -103,7 +104,7 @@ export default function CoursesAndMessages({ initialTab = 'courses' }) {
       return;
     }
     setSuccessMsg('تم حفظ الدورة التدريبية وتحديد المدعوات بنجاح.');
-    setCourseForm((prev) => ({ ...prev, name: '', hours: '', trainer: '', locationName: '', hijriDate: '' }));
+    setCourseForm((prev) => ({ ...prev, name: '', hours: '', trainer: '', locationName: '', date: todayISO() }));
   };
 
   const messageRecipients = () => {
@@ -208,6 +209,7 @@ export default function CoursesAndMessages({ initialTab = 'courses' }) {
           {[
             ['courses', 'البرامج والدورات'],
             ['messages', 'إنشاء وإرسال الرسائل'],
+            ['whatsapp', 'إرسال واتساب'],
             ['sms', 'إرسال SMS لولي الأمر'],
           ].map(([id, label]) => (
             <button key={id} type="button" className={activeTab === id ? 'btn-primary' : 'btn-soft'} onClick={() => chooseTab(id)}>
@@ -244,8 +246,9 @@ export default function CoursesAndMessages({ initialTab = 'courses' }) {
                 <input className="field" dir="ltr" type="number" min="1" value={courseForm.hours} onChange={(event) => setCourseForm({ ...courseForm, hours: event.target.value })} />
               </label>
               <label className="block">
-                <span className="label">تاريخ التنفيذ باليوم والهجري</span>
-                <input className="field" value={courseForm.hijriDate} onChange={(event) => setCourseForm({ ...courseForm, hijriDate: event.target.value })} placeholder="الأحد 10 / 4 / 1448 هـ" />
+                <span className="label">تاريخ التنفيذ</span>
+                <input className="field" type="date" required value={courseForm.date} onChange={(event) => setCourseForm({ ...courseForm, date: event.target.value })} />
+                {courseForm.date ? <span className="mt-1 block text-xs leading-6 text-mute">{formatBoth(courseForm.date)}</span> : null}
               </label>
               <label className="block">
                 <span className="label">المدرب / المدربة</span>
@@ -293,7 +296,7 @@ export default function CoursesAndMessages({ initialTab = 'courses' }) {
                     <div>
                       <h4 className="font-extrabold">{course.name}</h4>
                       <p className="mt-1 text-sm text-mute">
-                        المدربة: {course.trainer || '—'} | المكان: {course.locationType || course.place} {course.locationName ? `(${course.locationName})` : ''} | التاريخ: {course.hijri || course.hijriDate || '—'}
+                        المدربة: {course.trainer || '—'} | المكان: {course.locationType || course.place} {course.locationName ? `(${course.locationName})` : ''} | التاريخ: {course.date ? formatBoth(course.date) : (course.hijri || course.hijriDate || '—')}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -352,6 +355,10 @@ export default function CoursesAndMessages({ initialTab = 'courses' }) {
             <button className="btn-primary w-full" type="submit">إرسال الرسالة مع التأكيد</button>
           </form>
         </section>
+      )}
+
+      {activeTab === 'whatsapp' && (
+        <WhatsAppSend students={students} title="إرسال رسائل الواتساب" />
       )}
 
       {activeTab === 'sms' && (

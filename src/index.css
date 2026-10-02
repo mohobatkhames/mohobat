@@ -201,6 +201,26 @@ table.data tr + tr td { border-top: 1px solid var(--line); }
   border: 1px solid #fecdd3;
 }
 
+.signature-pad {
+  width: 100%;
+  height: 180px;
+  touch-action: none;
+  cursor: crosshair;
+  border: 1px dashed var(--line);
+  border-radius: 1rem;
+  background:
+    linear-gradient(transparent 46%, color-mix(in srgb, var(--primary) 25%, transparent) 46%, color-mix(in srgb, var(--primary) 25%, transparent) 54%, transparent 54%),
+    var(--soft);
+}
+
+.signature-image {
+  display: block;
+  max-width: 220px;
+  max-height: 90px;
+  object-fit: contain;
+  background: transparent;
+}
+
 .certificate-sheet {
   background:
     radial-gradient(circle at 0 0, color-mix(in srgb, var(--accent) 18%, white), transparent 32%),

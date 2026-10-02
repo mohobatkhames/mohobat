@@ -34,6 +34,10 @@ function defaultState() {
       semester: 'الفصل الدراسي الأول',
       academicYear: '1447 / 1448',
       defaultPassword: '123456',
+      signature: '',
+      showSignatureOnCertificates: false,
+      showSignatureOnReports: false,
+      whatsappNumber: '966559820932',
       updatedAt: nowIso(),
     },
     users: [ownerRecord()],
@@ -388,7 +392,10 @@ export function StoreProvider({ children }) {
       setTheme: (theme) => commit({ ...dataRef.current, theme }),
       updateSettings: (patch) => {
         const current = dataRef.current;
-        const settings = { ...current.settings, ...patch, updatedAt: nowIso() };
+        const settings = { ...current.settings, updatedAt: nowIso() };
+        Object.entries(patch || {}).forEach(([key, value]) => {
+          if (value !== undefined) settings[key] = value;
+        });
         let users = current.users;
         if (patch.defaultPassword && patch.defaultPassword !== current.settings.defaultPassword) {
           users = users.map((user) => user.usesDefaultPassword ? { ...user, password: patch.defaultPassword, updatedAt: nowIso() } : user);
@@ -399,6 +406,22 @@ export function StoreProvider({ children }) {
           writeCloud('settings', 'general', general),
           writeCloud('settings', 'security', { defaultPassword, updatedAt: settings.updatedAt }),
         ]));
+      },
+      saveDirectorSignature: (patch) => {
+        if (session?.role !== 'director') return { ok: false, message: 'إضافة التوقيع متاحة لمديرة المركز فقط.' };
+        const next = {};
+        if ('signature' in patch) next.signature = patch.signature || '';
+        if ('showSignatureOnCertificates' in patch) next.showSignatureOnCertificates = Boolean(patch.showSignatureOnCertificates);
+        if ('showSignatureOnReports' in patch) next.showSignatureOnReports = Boolean(patch.showSignatureOnReports);
+        if (next.signature && String(next.signature).length > 700000) {
+          return { ok: false, message: 'صورة التوقيع أكبر من المناسب. استخدمي صورة أصغر.' };
+        }
+        const current = dataRef.current;
+        const settings = { ...current.settings, ...next, updatedAt: nowIso() };
+        commit({ ...current, settings });
+        const { defaultPassword, ...general } = settings;
+        cloudTask(() => writeCloud('settings', 'general', general));
+        return { ok: true };
       },
       saveOnWeb: async () => {
         if (session?.role !== 'owner') return { ok: false, web: false, message: 'الحفظ على الويب متاح للمالك فقط.' };
@@ -710,6 +733,33 @@ export function StoreProvider({ children }) {
           writeCloud('archive', entry.id, entry),
         ]));
         return { ok: true };
+      },
+      acknowledgeMessage: (messageId) => {
+        if (session?.role !== 'student') return { ok: false, message: 'إشعار الاستلام متاح للطالبة فقط.' };
+        const current = dataRef.current;
+        const source = current.messages.find((item) => item.id === messageId);
+        if (!source) return { ok: false, message: 'الرسالة غير موجودة.' };
+        if (source.receivedAt) return { ok: true, message: 'تم إرسال إشعار الاستلام من قبل.' };
+        const notice = {
+          id: uid('msg'),
+          channel: 'receipt-notice',
+          title: 'إشعار استلام',
+          body: `أكدت الطالبة ${session.name} استلام الرسالة: ${source.title}`,
+          studentNationalId: session.nationalId,
+          recipientIds: [],
+          recipientLabels: ['النظام'],
+          createdAt: nowIso(),
+          senderName: session.name,
+          status: 'sent',
+          sourceMessageId: messageId,
+        };
+        const messages = [{ ...notice }, ...current.messages.map((item) => item.id === messageId ? { ...item, receivedAt: notice.createdAt, status: 'received' } : item)];
+        commit({ ...current, messages });
+        cloudTask(() => Promise.all([
+          writeCloud('messages', notice.id, notice),
+          writeCloud('messages', messageId, messages.find((item) => item.id === messageId)),
+        ]));
+        return { ok: true, message: 'أُرسل إشعار الاستلام إلى النظام.' };
       },
       issueCertificate: ({ student, action, byRole }) => {
         const current = dataRef.current;

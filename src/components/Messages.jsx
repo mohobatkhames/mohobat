@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { formatTime } from '../lib/dates';
+import { formatBothDateTime } from '../lib/dates';
 import { useStore } from '../context/Store';
 import Composer from './Composer';
 import { Empty } from './ui';
@@ -79,7 +79,7 @@ export default function Messages() {
             <article key={message.id} className="rounded-2xl border border-[var(--line)] p-3">
               <div className="mb-1 flex items-center justify-between gap-2">
                 <b>{message.title}</b>
-                <span className="text-xs text-mute">{message.channel} · {formatTime(message.createdAt)}</span>
+                <span className="text-xs text-mute">{message.channel} · {formatBothDateTime(message.createdAt)}</span>
               </div>
               <p className="text-sm leading-7">{message.body}</p>
               {message.image && <img src={message.image} alt="" className="mt-2 max-h-36 rounded-xl" />}

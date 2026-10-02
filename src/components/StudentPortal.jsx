@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { THEMES } from '../lib/constants';
-import { formatTime } from '../lib/dates';
+import { formatBothDateTime } from '../lib/dates';
 import { useStore } from '../context/Store';
 import Certificate from './Certificate';
 import InstallApp from './InstallApp';
@@ -50,9 +50,19 @@ export default function StudentPortal() {
             <div className="space-y-3">
               {messages.map((message) => (
                 <article key={message.id} className="rounded-2xl bg-[var(--soft)] p-3">
-                  <div className="mb-1 flex justify-between gap-2 text-sm"><b>{message.title}</b><span>{formatTime(message.createdAt)}</span></div>
+                  <div className="mb-1 flex justify-between gap-2 text-sm"><b>{message.title}</b><span>{formatBothDateTime(message.createdAt)}</span></div>
                   <p className="text-sm leading-7">{message.body}</p>
                   {message.image && <img src={message.image} alt="" className="mt-2 max-h-40 rounded-xl" />}
+                  {message.channel !== 'print-notice' && message.channel !== 'receipt-notice' && (
+                    <button
+                      className="btn-soft mt-3"
+                      type="button"
+                      disabled={Boolean(message.receivedAt)}
+                      onClick={() => setNotice(store.acknowledgeMessage(message.id).message)}
+                    >
+                      {message.receivedAt ? 'تم إرسال إشعار الاستلام' : 'إرسال إشعار الاستلام'}
+                    </button>
+                  )}
                 </article>
               ))}
             </div>

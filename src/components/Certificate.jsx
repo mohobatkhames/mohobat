@@ -1,12 +1,13 @@
 import { isAttending } from '../lib/course';
 
-function directorOf(users = []) {
+export function directorOf(users = []) {
   return users.find((user) => user.role === 'director' || user.job === 'مديرة');
 }
 
 export default function Certificate({ settings, student, courses = [], users = [] }) {
   const attended = courses.filter((course) => isAttending(course, student.nationalId));
   const director = directorOf(users);
+  const trainers = [...new Set(attended.map((course) => String(course.trainer || '').trim()).filter(Boolean))];
   return (
     <article className="certificate-sheet mx-auto max-w-3xl text-center">
       <div className="flex items-center justify-between gap-3 text-xs font-bold leading-6">
@@ -34,10 +35,21 @@ export default function Certificate({ settings, student, courses = [], users = [
       {attended.length > 0 && (
         <p className="mx-auto mt-4 max-w-xl text-sm leading-7">البرامج التي حضرتها: {attended.map((course) => course.name).join('، ')}</p>
       )}
-      <div className="mt-12 text-sm">
-        <p className="font-extrabold">مديرة المركز</p>
-        <p className="mt-2 text-lg font-extrabold">{director?.name || '—'}</p>
-        <p className="mt-6 text-mute">التوقيع والختم</p>
+      <div className="mt-12 grid grid-cols-2 items-end gap-6 text-sm" dir="ltr">
+        <div dir="rtl">
+          {settings.showSignatureOnCertificates && settings.signature && (
+            <img className="signature-image mx-auto mb-2" src={settings.signature} alt="" />
+          )}
+          <p className="font-extrabold">مديرة المركز</p>
+          <p className="mt-2 text-lg font-extrabold">{director?.name || '—'}</p>
+          <p className="mt-6 text-mute">التوقيع والختم</p>
+        </div>
+        <div dir="rtl">
+          <p className="font-extrabold">المدرب / المدربة</p>
+          {trainers.length === 0 ? <p className="mt-2 text-lg font-extrabold">—</p> : trainers.map((name) => (
+            <p key={name} className="mt-2 text-lg font-extrabold">{name}</p>
+          ))}
+        </div>
       </div>
     </article>
   );

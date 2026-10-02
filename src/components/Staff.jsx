@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { JOBS } from '../lib/constants';
+import { formatBoth } from '../lib/dates';
 import { useStore } from '../context/Store';
 import { Banner, Empty, Field } from './ui';
 
@@ -40,7 +41,10 @@ export default function Staff() {
           </Field>
           <Field label="الجوال"><input className="field" dir="ltr" value={form.phone} onChange={set('phone')} /></Field>
           <Field label="البريد"><input className="field" dir="ltr" type="email" value={form.email} onChange={set('email')} /></Field>
-          <Field label="تاريخ الالتحاق"><input className="field" type="date" value={form.joinDate} onChange={set('joinDate')} /></Field>
+          <Field label="تاريخ الالتحاق">
+            <input className="field" type="date" value={form.joinDate} onChange={set('joinDate')} />
+            {form.joinDate ? <span className="mt-1 block text-xs leading-6 text-mute">{formatBoth(form.joinDate)}</span> : null}
+          </Field>
           <button className="btn-primary w-full" type="submit">حفظ</button>
         </form>
       </section>
@@ -59,7 +63,7 @@ export default function Staff() {
                     <td>{user.job}</td>
                     <td dir="ltr">{user.phone || '—'}</td>
                     <td>{user.email || '—'}</td>
-                    <td dir="ltr">{user.joinDate || '—'}</td>
+                    <td className="whitespace-normal">{user.joinDate ? formatBoth(user.joinDate) : '—'}</td>
                     <td>
                       <div className="flex flex-wrap gap-2">
                         <button className="btn-soft" type="button" onClick={() => { setForm(user); setEditing(true); }}>تعديل</button>

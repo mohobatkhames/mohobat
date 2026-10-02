@@ -13,7 +13,7 @@ function asDate(value) {
 }
 
 export function formatGregorian(value) {
-  return new Intl.DateTimeFormat('ar-SA', {
+  return new Intl.DateTimeFormat('ar-SA-u-ca-gregory', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
@@ -23,11 +23,17 @@ export function formatGregorian(value) {
 
 export function formatHijri(value) {
   return new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', {
-    weekday: 'long',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   }).format(asDate(value));
+}
+
+export function formatBoth(value) {
+  if (!value) return '—';
+  const date = asDate(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return `${formatHijri(date)} · ${formatGregorian(date)} م`;
 }
 
 export function weekdayName(value) {
@@ -36,6 +42,11 @@ export function weekdayName(value) {
 
 export function formatTime(value) {
   return new Intl.DateTimeFormat('ar-SA', { hour: 'numeric', minute: '2-digit' }).format(asDate(value));
+}
+
+export function formatBothDateTime(value) {
+  if (!value) return '—';
+  return `${formatBoth(value)} · ${formatTime(value)}`;
 }
 
 export function nowIso() {

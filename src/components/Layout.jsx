@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { THEMES, ROLE_LABELS } from '../lib/constants';
-import { formatTime } from '../lib/dates';
+import { formatBothDateTime } from '../lib/dates';
 import { navigate, pageFromPath, pathFromPage } from '../lib/routes';
 import { useStore } from '../context/Store';
 import Attendance from './Attendance';
@@ -11,16 +11,25 @@ import ReportsAndCertificates from './ReportsAndCertificates';
 import SettingsPanel from './SettingsPanel';
 import Staff from './Staff';
 import Students from './Students';
+import DirectorSignature from './DirectorSignature';
 import InstallApp from './InstallApp';
 import { Banner, Field, Modal, PasswordField } from './ui';
+
+function CoursesPage() {
+  return <CoursesAndMessages initialTab="courses" />;
+}
+
+function MessagesPage() {
+  return <CoursesAndMessages initialTab="messages" />;
+}
 
 const PAGES = [
   ['dashboard', 'الرئيسية', Dashboard],
   ['students', 'الطالبات', Students],
   ['staff', 'الموظفات', Staff, true],
   ['attendance', 'الحضور', Attendance],
-  ['courses', 'البرامج', () => <CoursesAndMessages initialTab="courses" />],
-  ['messages', 'الرسائل', () => <CoursesAndMessages initialTab="messages" />],
+  ['courses', 'البرامج', CoursesPage],
+  ['messages', 'الرسائل', MessagesPage],
   ['reports', 'التقارير والشهادات', ReportsAndCertificates],
   ['settings', 'الإعدادات', SettingsPanel, true],
   ['support', 'الدعم الفني', OwnerSupport, 'owner'],
@@ -115,7 +124,7 @@ export default function Layout() {
         <div className="no-print px-4">
           <Banner tone={store.cloud.mode === 'error' ? 'bad' : 'ok'}>
             {store.cloud.message}
-            {store.cloud.mode === 'synced' && store.savedAt ? <span className="mx-1 inline-block whitespace-nowrap">آخر مزامنة {formatTime(store.savedAt)}</span> : null}
+            {store.cloud.mode === 'synced' && store.savedAt ? <span className="mx-1 inline-block whitespace-nowrap">آخر مزامنة {formatBothDateTime(store.savedAt)}</span> : null}
           </Banner>
         </div>
         <main className="px-4 py-4">
@@ -137,6 +146,7 @@ export default function Layout() {
               <button className="btn-primary md:col-span-2" type="submit">تغيير كلمة المرور</button>
             </form>
             <button className="btn-soft w-full" type="button" onClick={fingerprint}>تسجيل الدخول بالبصمة على هذا الجهاز</button>
+            {store.session?.role === 'director' && <DirectorSignature />}
           </div>
         </Modal>
       )}
