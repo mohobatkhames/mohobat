@@ -9,6 +9,7 @@ export const APP_ROUTES = [
   { path: '/reports', page: 'reports' },
   { path: '/certificates', page: 'certificates' },
   { path: '/settings', page: 'settings' },
+  { path: '/support', page: 'support' },
   { path: '/portal', page: 'portal' },
 ];
 

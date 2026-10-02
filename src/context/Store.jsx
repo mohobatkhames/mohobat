@@ -42,6 +42,7 @@ function defaultState() {
     courses: [],
     messages: [],
     certificates: [],
+    archive: [],
     theme: 'orchid',
     privacyAccepted: false,
   };
@@ -77,6 +78,7 @@ function loadState() {
       courses: parsed.courses || [],
       messages: parsed.messages || [],
       certificates: parsed.certificates || [],
+      archive: parsed.archive || [],
     });
   } catch {
     return defaultState();
@@ -161,10 +163,10 @@ export function StoreProvider({ children }) {
   });
   const [savedAt, setSavedAt] = useState(null);
   const [cloud, setCloud] = useState({
-    mode: isFirebaseConfigured() ? 'ready' : 'local',
+    mode: isFirebaseConfigured() ? 'ready' : 'error',
     message: isFirebaseConfigured()
-      ? 'Firebase جاهز وستبدأ المزامنة بعد الدخول.'
-      : 'الحفظ المحلي يعمل. أضيفي مفاتيح Firebase الحقيقية لتفعيل المزامنة السحابية.',
+      ? 'Firestore جاهز. تبدأ المزامنة المباشرة بعد تسجيل الدخول.'
+      : 'مفاتيح Firebase غير مكتملة. أضيفي القيم الحقيقية في متغيرات البيئة على Render.',
   });
   const dataRef = useRef(data);
   const allowDeleteRef = useRef(false);
@@ -177,7 +179,7 @@ export function StoreProvider({ children }) {
       localStorage.setItem(LOCAL_KEY, JSON.stringify(next));
       setSavedAt(new Date().toISOString());
     } catch {
-      setCloud({ mode: 'error', message: 'تعذر الحفظ المحلي. قد تكون مساحة المتصفح ممتلئة.' });
+      setCloud({ mode: 'error', message: 'تعذرت تهيئة البيانات في المتصفح.' });
     }
   };
 
@@ -191,7 +193,7 @@ export function StoreProvider({ children }) {
         localStorage.setItem(LOCAL_KEY, JSON.stringify(dataRef.current));
         setSavedAt(new Date().toISOString());
       } catch {
-        setCloud({ mode: 'error', message: 'تعذر الحفظ المحلي. قد تكون مساحة المتصفح ممتلئة.' });
+        setCloud({ mode: 'error', message: 'تعذرت تهيئة البيانات في المتصفح.' });
       }
     }, 250);
     return () => clearTimeout(timer);
@@ -224,6 +226,7 @@ export function StoreProvider({ children }) {
           if (partial.courses) next.courses = mergeList(current.courses, partial.courses, 'id', allowDelete);
           if (partial.messages) next.messages = mergeList(current.messages, partial.messages, 'id', allowDelete && session.role !== 'student');
           if (partial.certificates) next.certificates = mergeList(current.certificates, partial.certificates, 'id', allowDelete && session.role !== 'student');
+          if (partial.archive) next.archive = mergeList(current.archive, partial.archive, 'id', allowDelete && session.role !== 'student');
           if (partial.users) next.users = mergeUsers(current.users, partial.users, next.settings.defaultPassword);
           if (partial.attendance) {
             const remoteMap = {};
@@ -233,8 +236,8 @@ export function StoreProvider({ children }) {
           dataRef.current = next;
           return next;
         });
-      }, () => setCloud({ mode: 'error', message: 'تعذر الاشتراك اللحظي. الحفظ المحلي مستمر.' }));
-      setCloud({ mode: 'synced', message: 'المزامنة اللحظية مع Firestore تعمل، والحفظ المحلي مستمر.' });
+      }, () => setCloud({ mode: 'error', message: 'تعذر الاشتراك اللحظي مع Firestore.' }));
+      setCloud({ mode: 'synced', message: 'المزامنة اللحظية مع Firestore تعمل.' });
     });
     return () => {
       stopAuth();
@@ -243,20 +246,28 @@ export function StoreProvider({ children }) {
   }, [session]);
 
   const cloudTask = async (task) => {
-    if (!canSync()) return;
+    if (!canSync()) {
+      setCloud({
+        mode: 'error',
+        message: isFirebaseConfigured()
+          ? 'تعذرت المزامنة مع Firestore قبل اكتمال تسجيل الدخول السحابي.'
+          : 'تعذرت المزامنة. مفاتيح Firebase غير مكتملة في متغيرات البيئة.',
+      });
+      return;
+    }
     try {
       await task();
-      setCloud({ mode: 'synced', message: 'تم الحفظ محلياً ومزامنته مع Firestore.' });
+      setCloud({ mode: 'synced', message: 'تمت المزامنة مع Firestore.' });
     } catch (error) {
       const detail = error?.code || error?.message || '';
-      setCloud({ mode: 'error', message: detail ? `تم الحفظ محلياً، وتعذرت المزامنة السحابية: ${detail}` : 'تم الحفظ محلياً، وتعذرت المزامنة السحابية.' });
+      setCloud({ mode: 'error', message: detail ? `تعذرت المزامنة مع Firestore: ${detail}` : 'تعذرت المزامنة مع Firestore.' });
     }
   };
 
   const connectCloud = async (person, password, kind) => {
     const result = await signInCloud(person.nationalId, password, kind);
     if (!result.ok) {
-      if (!result.skipped && result.message) setCloud({ mode: 'local', message: result.message });
+      if (result.message) setCloud({ mode: 'error', message: result.message });
       return;
     }
     try {
@@ -267,7 +278,7 @@ export function StoreProvider({ children }) {
       }
       setCloud({ mode: 'synced', message: 'تم الدخول ومزامنة البيانات مع Firestore.' });
     } catch {
-      setCloud({ mode: 'error', message: 'تم الدخول. الحفظ المحلي يعمل وتعذرت مزامنة بعض البيانات.' });
+      setCloud({ mode: 'error', message: 'تم الدخول، وتعذرت مزامنة بعض البيانات مع Firestore.' });
     }
   };
 
@@ -389,6 +400,23 @@ export function StoreProvider({ children }) {
           writeCloud('settings', 'security', { defaultPassword, updatedAt: settings.updatedAt }),
         ]));
       },
+      saveOnWeb: async () => {
+        if (session?.role !== 'owner') return { ok: false, web: false, message: 'الحفظ على الويب متاح للمالك فقط.' };
+        commit(dataRef.current);
+        if (!canSync()) {
+          return { ok: false, web: false, message: isFirebaseConfigured() ? 'تعذرت المزامنة مع Firestore قبل اكتمال تسجيل الدخول السحابي.' : 'مفاتيح Firebase غير مكتملة في متغيرات البيئة على Render.' };
+        }
+        try {
+          await pushSnapshot(dataRef.current);
+          allowDeleteRef.current = true;
+          setCloud({ mode: 'synced', message: 'تم حفظ التعديلات على الويب من هذا الجهاز.' });
+          return { ok: true, web: true, message: 'تم حفظ التعديلات على الويب.' };
+        } catch (error) {
+          const detail = error?.code || error?.message || '';
+          setCloud({ mode: 'error', message: detail ? `تعذر الحفظ على الويب: ${detail}` : 'تعذر الحفظ على الويب.' });
+          return { ok: false, web: false, message: detail ? `تعذر الحفظ على الويب: ${detail}` : 'تعذر الحفظ على الويب.' };
+        }
+      },
       saveStudent: (student) => {
         const current = dataRef.current;
         const nationalId = normalizeId(student.nationalId);
@@ -412,10 +440,31 @@ export function StoreProvider({ children }) {
         cloudTask(() => writeCloud('students', nationalId, record));
         return { ok: true };
       },
-      deleteStudent: (nationalId) => {
+      deleteStudent: (nationalId, reason, kind = 'طالبة') => {
+        const cause = String(reason || '').trim();
+        if (!cause) return { ok: false, message: 'سبب الحذف مطلوب.' };
         const current = dataRef.current;
-        commit({ ...current, students: current.students.filter((item) => item.nationalId !== nationalId) });
-        cloudTask(() => removeCloud('students', nationalId));
+        const student = current.students.find((item) => item.nationalId === nationalId);
+        if (!student) return { ok: false, message: 'السجل غير موجود.' };
+        const entry = {
+          id: uid('arch'),
+          kind,
+          title: student.name,
+          detail: `${student.nationalId} · ${student.grade || 'بدون صف'} · جوال ولي الأمر ${student.guardianPhone || 'غير مسجل'}`,
+          reason: cause,
+          deletedAt: nowIso(),
+          deletedBy: session?.name || 'النظام',
+        };
+        commit({
+          ...current,
+          students: current.students.filter((item) => item.nationalId !== nationalId),
+          archive: [entry, ...(current.archive || [])],
+        });
+        cloudTask(() => Promise.all([
+          removeCloud('students', nationalId),
+          writeCloud('archive', entry.id, entry),
+        ]));
+        return { ok: true };
       },
       importStudents: (rows) => {
         const current = dataRef.current;
@@ -460,10 +509,28 @@ export function StoreProvider({ children }) {
         cloudTask(() => provisionAccount(nationalId, record.usesDefaultPassword ? current.settings.defaultPassword : record.password, record, 'staff'));
         return { ok: true };
       },
-      deleteStaff: (nationalId) => {
+      deleteStaff: (nationalId, reason) => {
         if (nationalId === OWNER_ID) return { ok: false, message: 'لا يمكن حذف المالك.' };
+        const cause = String(reason || '').trim();
+        if (!cause) return { ok: false, message: 'سبب الحذف مطلوب.' };
         const current = dataRef.current;
-        commit({ ...current, users: current.users.filter((user) => user.nationalId !== nationalId) });
+        const user = current.users.find((item) => item.nationalId === nationalId);
+        if (!user) return { ok: false, message: 'السجل غير موجود.' };
+        const entry = {
+          id: uid('arch'),
+          kind: 'موظفة',
+          title: user.name,
+          detail: `${user.nationalId} · ${user.job || user.role}`,
+          reason: cause,
+          deletedAt: nowIso(),
+          deletedBy: session?.name || 'النظام',
+        };
+        commit({
+          ...current,
+          users: current.users.filter((item) => item.nationalId !== nationalId),
+          archive: [entry, ...(current.archive || [])],
+        });
+        cloudTask(() => writeCloud('archive', entry.id, entry));
         return { ok: true };
       },
       resetStaffPassword: (nationalId) => {
@@ -560,10 +627,31 @@ export function StoreProvider({ children }) {
         cloudTask(() => writeCloud('courses', record.id, record));
         return { ok: true, course: record };
       },
-      deleteCourse: (id) => {
+      deleteCourse: (id, reason) => {
+        const cause = String(reason || '').trim();
+        if (!cause) return { ok: false, message: 'سبب الحذف مطلوب.' };
         const current = dataRef.current;
-        commit({ ...current, courses: current.courses.filter((course) => course.id !== id) });
-        cloudTask(() => removeCloud('courses', id));
+        const course = current.courses.find((item) => item.id === id);
+        if (!course) return { ok: false, message: 'البرنامج غير موجود.' };
+        const entry = {
+          id: uid('arch'),
+          kind: 'برنامج',
+          title: course.name,
+          detail: course.grade || '',
+          reason: cause,
+          deletedAt: nowIso(),
+          deletedBy: session?.name || 'النظام',
+        };
+        commit({
+          ...current,
+          courses: current.courses.filter((item) => item.id !== id),
+          archive: [entry, ...(current.archive || [])],
+        });
+        cloudTask(() => Promise.all([
+          removeCloud('courses', id),
+          writeCloud('archive', entry.id, entry),
+        ]));
+        return { ok: true };
       },
       setCourseFlag: (courseId, nationalId, field) => {
         const current = dataRef.current;
@@ -597,10 +685,31 @@ export function StoreProvider({ children }) {
         cloudTask(() => writeCloud('messages', message.id, message));
         return message;
       },
-      deleteMessage: (id) => {
+      deleteMessage: (id, reason) => {
+        const cause = String(reason || '').trim();
+        if (!cause) return { ok: false, message: 'سبب الحذف مطلوب.' };
         const current = dataRef.current;
-        commit({ ...current, messages: current.messages.filter((message) => message.id !== id) });
-        cloudTask(() => removeCloud('messages', id));
+        const message = current.messages.find((item) => item.id === id);
+        if (!message) return { ok: false, message: 'الرسالة غير موجودة.' };
+        const entry = {
+          id: uid('arch'),
+          kind: 'رسالة',
+          title: message.title || 'رسالة',
+          detail: message.body || '',
+          reason: cause,
+          deletedAt: nowIso(),
+          deletedBy: session?.name || 'النظام',
+        };
+        commit({
+          ...current,
+          messages: current.messages.filter((item) => item.id !== id),
+          archive: [entry, ...(current.archive || [])],
+        });
+        cloudTask(() => Promise.all([
+          removeCloud('messages', id),
+          writeCloud('archive', entry.id, entry),
+        ]));
+        return { ok: true };
       },
       issueCertificate: ({ student, action, byRole }) => {
         const current = dataRef.current;

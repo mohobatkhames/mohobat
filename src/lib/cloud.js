@@ -1,8 +1,9 @@
 import { createUserWithEmailAndPassword, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { collection, deleteDoc, doc, onSnapshot, query, setDoc, where } from 'firebase/firestore';
-import { auth, authEmail, db, getSecondaryAuth, isFirebaseConfigured } from '../firebase';
+import { auth, authEmail, db, ensureFirebase, getSecondaryAuth, isFirebaseConfigured } from '../firebase';
 
 export function canSync() {
+  ensureFirebase();
   return Boolean(isFirebaseConfigured() && db && auth?.currentUser);
 }
 
@@ -24,7 +25,8 @@ async function writeChunks(items, size, write) {
 }
 
 export async function signInCloud(nationalId, password, kind) {
-  if (!isFirebaseConfigured() || !auth) return { ok: false, skipped: true };
+  ensureFirebase();
+  if (!isFirebaseConfigured() || !auth) return { ok: false, skipped: true, message: 'مفاتيح Firebase غير مكتملة في متغيرات البيئة.' };
   const email = authEmail(nationalId, kind);
   try {
     await signInWithEmailAndPassword(auth, email, password);
@@ -32,7 +34,7 @@ export async function signInCloud(nationalId, password, kind) {
   } catch (error) {
     const missing = ['auth/user-not-found', 'auth/invalid-credential', 'auth/invalid-login-credentials'];
     if (!missing.includes(error.code)) {
-      return { ok: false, message: 'تعذر الاتصال بمصادقة Firebase. الحفظ المحلي يعمل.' };
+      return { ok: false, message: 'تعذر الاتصال بمصادقة Firebase.' };
     }
     try {
       const secondary = getSecondaryAuth();
@@ -42,9 +44,9 @@ export async function signInCloud(nationalId, password, kind) {
       return { ok: true, created: true };
     } catch (createError) {
       if (createError.code === 'auth/email-already-in-use') {
-        return { ok: false, message: 'الحساب السحابي بكلمة مرور مختلفة. تم الاعتماد على الحفظ المحلي.' };
+        return { ok: false, message: 'الحساب السحابي بكلمة مرور مختلفة.' };
       }
-      return { ok: false, message: 'تعذرت مزامنة الدخول. الحفظ المحلي يعمل.' };
+      return { ok: false, message: 'تعذرت مزامنة الدخول مع Firebase.' };
     }
   }
 }
@@ -75,6 +77,7 @@ export async function provisionAccount(nationalId, password, profile, kind = 'st
 }
 
 export async function writeCloud(collectionName, id, data) {
+  ensureFirebase();
   if (!canSync()) return;
   const payload = clean(data);
   if (payload.image && String(payload.image).length > 700000) delete payload.image;
@@ -95,6 +98,7 @@ export async function pushSnapshot(state) {
   await writeChunks(state.courses, 40, (course) => writeCloud('courses', course.id, course));
   await writeChunks(state.messages, 40, (message) => writeCloud('messages', message.id, message));
   await writeChunks(state.certificates, 40, (item) => writeCloud('certificates', item.id, item));
+  await writeChunks(state.archive || [], 40, (item) => writeCloud('archive', item.id, item));
   await writeChunks(Object.entries(state.attendance), 40, ([date, absent]) => writeCloud('attendance', date, { date, absent, updatedAt: new Date().toISOString() }));
 }
 
@@ -119,6 +123,7 @@ function watch(ref, onData, onError) {
 }
 
 export function subscribe(session, onData, onError) {
+  ensureFirebase();
   if (!db || !session) return () => {};
   const stops = [];
   const student = session.role === 'student';
@@ -147,6 +152,7 @@ export function subscribe(session, onData, onError) {
     stops.push(watch(collection(db, 'courses'), (rows) => onData({ courses: rows }), onError));
     stops.push(watch(collection(db, 'attendance'), (rows) => onData({ attendance: rows }), onError));
     stops.push(watch(collection(db, 'users'), (rows) => onData({ users: rows }), onError));
+    stops.push(watch(collection(db, 'archive'), (rows) => onData({ archive: rows }), onError));
   } else {
     stops.push(watch(collection(db, 'courses'), (rows) => onData({ courses: rows }), onError));
   }
@@ -155,6 +161,7 @@ export function subscribe(session, onData, onError) {
 }
 
 export function watchAuth(callback) {
+  ensureFirebase();
   if (!auth) return () => {};
   return onAuthStateChanged(auth, callback);
 }

@@ -259,6 +259,13 @@ table.data tr + tr td { border-top: 1px solid var(--line); }
   line-height: 1.8;
 }
 
+.support-page .btn-primary,
+.support-page .btn-soft {
+  min-height: 3rem;
+  white-space: normal;
+  line-height: 1.45;
+}
+
 .install-card h2 {
   margin: 0;
   font-size: 1rem;

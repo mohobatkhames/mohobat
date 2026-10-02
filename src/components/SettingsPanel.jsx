@@ -49,7 +49,7 @@ export default function SettingsPanel() {
             <button className="btn-primary w-full" type="submit">حفظ الإعدادات</button>
           </div>
         </form>
-        <p className="mt-3 text-sm leading-7 text-mute">الحفظ تلقائي محلياً. عند اكتمال مفاتيح Firebase تُزامَن الإعدادات العامة لحظياً، وتبقى كلمة المرور الافتراضية في مستند خاص بالمسؤولات.</p>
+        <p className="mt-3 text-sm leading-7 text-mute">تُزامَن الإعدادات مباشرة مع Firestore، وتبقى كلمة المرور الافتراضية في مستند خاص بالمسؤولات.</p>
       </section>
       <section className="card flex flex-wrap gap-3 p-6">
         <button className="btn-soft" type="button" onClick={backup}>تنزيل نسخة احتياطية</button>

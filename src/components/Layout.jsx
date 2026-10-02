@@ -6,6 +6,7 @@ import { useStore } from '../context/Store';
 import Attendance from './Attendance';
 import CoursesAndMessages from './CoursesAndMessages';
 import Dashboard from './Dashboard';
+import OwnerSupport from './OwnerSupport';
 import ReportsAndCertificates from './ReportsAndCertificates';
 import SettingsPanel from './SettingsPanel';
 import Staff from './Staff';
@@ -22,6 +23,7 @@ const PAGES = [
   ['messages', 'الرسائل', () => <CoursesAndMessages initialTab="messages" />],
   ['reports', 'التقارير والشهادات', ReportsAndCertificates],
   ['settings', 'الإعدادات', SettingsPanel, true],
+  ['support', 'الدعم الفني', OwnerSupport, 'owner'],
 ];
 
 export default function Layout() {
@@ -37,7 +39,10 @@ export default function Layout() {
     return () => window.removeEventListener('popstate', sync);
   }, []);
 
-  const visible = PAGES.filter((item) => !item[3] || store.canManage);
+  const visible = PAGES.filter((item) => {
+    if (item[3] === 'owner') return store.session?.role === 'owner';
+    return !item[3] || store.canManage;
+  });
   const view = page === 'certificates' ? 'reports' : page;
   const Active = visible.find((item) => item[0] === view)?.[2] || Dashboard;
 
@@ -99,6 +104,9 @@ export default function Layout() {
                 style={{ background: theme.id === 'rose' ? '#e11d48' : theme.id === 'lilac' ? '#6d5efc' : theme.id === 'blossom' ? '#f472b6' : theme.id === 'dusk' ? '#6b21a8' : '#7c3aed', outline: store.data.theme === theme.id ? '2px solid var(--text)' : 'none' }}
               />
             ))}
+            {store.session?.role === 'owner' && (
+              <button className="btn-primary" type="button" onClick={() => navigate('/support')}>تعديل وحفظ</button>
+            )}
             <InstallApp compact />
             <button className="btn-soft" type="button" onClick={() => setAccount(true)}>حسابي</button>
             <button className="btn-ghost" type="button" onClick={store.logout}>خروج</button>
@@ -107,7 +115,7 @@ export default function Layout() {
         <div className="no-print px-4">
           <Banner tone={store.cloud.mode === 'error' ? 'bad' : 'ok'}>
             {store.cloud.message}
-            {store.savedAt ? <span className="mx-1 inline-block whitespace-nowrap">آخر حفظ محلي {formatTime(store.savedAt)}</span> : null}
+            {store.cloud.mode === 'synced' && store.savedAt ? <span className="mx-1 inline-block whitespace-nowrap">آخر مزامنة {formatTime(store.savedAt)}</span> : null}
           </Banner>
         </div>
         <main className="px-4 py-4">

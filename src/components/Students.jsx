@@ -86,7 +86,7 @@ export default function Students() {
                       <td className="no-print">
                         <div className="flex gap-2">
                           <button className="btn-soft" type="button" onClick={() => { setForm(student); setEditing(student.nationalId); setTab('add'); }}>تعديل</button>
-                          {canManage && <button className="btn-danger" type="button" onClick={() => { if (window.confirm(`حذف الطالبة ${student.name}؟`)) deleteStudent(student.nationalId); }}>حذف</button>}
+                          {canManage && <button className="btn-danger" type="button" onClick={() => { const reason = window.prompt(`سبب حذف ${student.name}`); if (!reason?.trim()) return; const result = deleteStudent(student.nationalId, reason.trim()); if (!result.ok) setMessage(result.message); }}>حذف</button>}
                         </div>
                       </td>
                     </tr>

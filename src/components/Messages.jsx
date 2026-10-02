@@ -84,7 +84,7 @@ export default function Messages() {
               <p className="text-sm leading-7">{message.body}</p>
               {message.image && <img src={message.image} alt="" className="mt-2 max-h-36 rounded-xl" />}
               <p className="mt-2 text-xs text-mute">إلى: {(message.recipientLabels || []).slice(0, 6).join('، ') || '—'}</p>
-              {canManage && <button className="btn-ghost mt-2" type="button" onClick={() => deleteMessage(message.id)}>حذف</button>}
+              {canManage && <button className="btn-ghost mt-2" type="button" onClick={() => { const reason = window.prompt('سبب حذف الرسالة'); if (!reason?.trim()) return; deleteMessage(message.id, reason.trim()); }}>حذف</button>}
             </article>
           ))}
         </div>

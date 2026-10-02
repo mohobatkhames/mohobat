@@ -98,6 +98,11 @@ service cloud.firestore {
       );
     }
 
+    match /archive/{docId} {
+      allow read: if beforeDeadline() && isStaff();
+      allow create, update, delete: if beforeDeadline() && isAdmin();
+    }
+
     match /attendance/{docId} {
       allow read, write: if beforeDeadline() && isStaff();
     }

@@ -202,7 +202,7 @@ export default function CoursesAndMessages({ initialTab = 'courses' }) {
       <section className="card flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-2xl font-extrabold">إدارة البرامج والدورات والرسائل</h2>
-          <p className="mt-1 text-sm text-mute">{data.settings.centerName} | {data.settings.administrationName}</p>
+          <p className="mt-1 text-sm leading-7 text-mute">{data.settings.administrationName} | {data.settings.centerName}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {[
@@ -298,7 +298,7 @@ export default function CoursesAndMessages({ initialTab = 'courses' }) {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="rounded-full bg-white px-3 py-1 text-sm font-bold">{course.hours ? `${course.hours} ساعات` : 'برنامج تدريبي'}</span>
-                      <button className="btn-danger" type="button" onClick={() => { if (window.confirm('حذف هذه الدورة؟')) deleteCourse(course.id); }}>حذف</button>
+                      <button className="btn-danger" type="button" onClick={() => { const reason = window.prompt(`سبب حذف ${course.name}`); if (!reason?.trim()) return; deleteCourse(course.id, reason.trim()); }}>حذف</button>
                     </div>
                   </article>
                 ))}

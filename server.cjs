@@ -30,6 +30,7 @@ const APP_PATHS = new Set([
   '/reports',
   '/certificates',
   '/settings',
+  '/support',
   '/portal',
 ]);
 
