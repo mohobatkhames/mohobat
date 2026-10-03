@@ -95,8 +95,8 @@ export default function Layout() {
         </nav>
       </aside>
 
-      <div className="min-w-0">
-        <header className="no-print flex flex-wrap items-center gap-3 px-4 py-4">
+      <div className="min-w-0 max-w-full overflow-x-hidden">
+        <header className="no-print flex w-full max-w-full flex-col gap-3 px-3 py-3 sm:px-4">
           <div className="flex min-w-0 w-full items-center gap-3 lg:w-auto lg:flex-1">
             <button className="btn-ghost shrink-0 lg:hidden" type="button" onClick={() => setOpen((value) => !value)}>القائمة</button>
             <div className="min-w-0 flex-1">
@@ -118,10 +118,10 @@ export default function Layout() {
         <div className="no-print px-4">
           <Banner tone={store.cloud.mode === 'error' ? 'bad' : 'ok'}>
             {store.cloud.message}
-            {store.cloud.mode === 'synced' && store.savedAt ? <span className="mx-1 inline-block whitespace-nowrap">آخر مزامنة {formatBothDateTime(store.savedAt)}</span> : null}
+            {store.cloud.mode === 'synced' && store.savedAt ? <span className="mx-1 inline whitespace-normal">آخر مزامنة {formatBothDateTime(store.savedAt)}</span> : null}
           </Banner>
         </div>
-        <main className="px-4 py-4">
+        <main className="w-full max-w-full overflow-x-hidden px-3 py-4 sm:px-4">
           <Active />
         </main>
       </div>

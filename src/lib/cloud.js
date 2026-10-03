@@ -1,5 +1,5 @@
 import { createUserWithEmailAndPassword, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { collection, deleteDoc, doc, onSnapshot, query, setDoc, where } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, onSnapshot, query, setDoc, where } from 'firebase/firestore';
 import { auth, authEmail, databaseGuard, db, ensureFirebase, getSecondaryAuth } from '../firebase';
 import { cloudSettings } from './gateway';
 
@@ -77,18 +77,70 @@ export async function ensureProfile(profile) {
 
 export async function provisionAccount(nationalId, password, profile, kind = 'staff') {
   assertProject();
-  if (!auth?.currentUser) return;
+  if (!auth?.currentUser) throw new Error('تعذر نشر الحساب لأن المزامنة مع قاعدة المشروع غير متصلة.');
   const secondary = getSecondaryAuth();
+  const email = authEmail(nationalId, kind);
   let uid = null;
   try {
-    const cred = await createUserWithEmailAndPassword(secondary, authEmail(nationalId, kind), password);
+    const cred = await createUserWithEmailAndPassword(secondary, email, password);
     uid = cred.user.uid;
     await signOut(secondary);
   } catch (error) {
-    if (error.code !== 'auth/email-already-in-use') return;
+    if (error.code !== 'auth/email-already-in-use') throw error;
+    try {
+      const cred = await signInWithEmailAndPassword(secondary, email, password);
+      uid = cred.user.uid;
+      await signOut(secondary);
+    } catch {
+      throw new Error('الحساب السحابي موجود بكلمة مرور مختلفة عن المحفوظة في النظام.');
+    }
   }
-  if (!uid) return;
-  await setDoc(doc(db, 'users', uid), { ...clean(profile), uid, updatedAt: new Date().toISOString() }, { merge: true });
+  await setDoc(doc(db, 'users', uid), {
+    ...clean(profile),
+    uid,
+    nationalId: String(nationalId),
+    updatedAt: new Date().toISOString(),
+  }, { merge: true });
+}
+
+export async function signInExisting(nationalId, password, kind) {
+  const blocked = databaseGuard();
+  if (blocked || !auth) return { ok: false, message: blocked || 'تعذر الاتصال بقاعدة مشروع موهوبات.' };
+  try {
+    await signInWithEmailAndPassword(auth, authEmail(nationalId, kind), password);
+    return { ok: true };
+  } catch (error) {
+    const unknown = ['auth/user-not-found', 'auth/invalid-credential', 'auth/invalid-login-credentials', 'auth/wrong-password'];
+    if (unknown.includes(error.code)) {
+      return { ok: false, message: 'الحساب غير منشور في قاعدة المشروع أو كلمة المرور ليست المحفوظة عند إنشائه.' };
+    }
+    return { ok: false, message: `تعذر الاتصال بمصادقة Firebase. (${error.code || 'unknown'})` };
+  }
+}
+
+export async function readOwnProfile() {
+  assertProject();
+  if (!auth?.currentUser) return null;
+  const snap = await getDoc(doc(db, 'users', auth.currentUser.uid));
+  return snap.exists() ? snap.data() : null;
+}
+
+export async function publishRoster(state) {
+  assertProject();
+  if (!auth?.currentUser) return [];
+  const published = [];
+  const staff = (state.users || []).filter((user) => user.role && user.role !== 'owner' && user.role !== 'student' && !user.authPublished);
+  for (const user of staff) {
+    const password = user.usesDefaultPassword === false && user.password ? user.password : state.settings.defaultPassword;
+    await provisionAccount(user.nationalId, password, { ...user, usesDefaultPassword: user.usesDefaultPassword !== false }, 'staff');
+    published.push({ kind: 'staff', nationalId: user.nationalId });
+  }
+  const students = (state.students || []).filter((student) => student.nationalId && !student.authPublished).slice(0, 40);
+  for (const student of students) {
+    await provisionAccount(student.nationalId, student.nationalId, { ...student, role: 'student', job: 'طالبة', nationalId: student.nationalId }, 'student');
+    published.push({ kind: 'student', nationalId: student.nationalId });
+  }
+  return published;
 }
 
 export async function writeCloud(collectionName, id, data) {
@@ -117,6 +169,7 @@ export async function pushSnapshot(state) {
   await writeChunks(state.certificates, 40, (item) => writeCloud('certificates', item.id, item));
   await writeChunks(state.archive || [], 40, (item) => writeCloud('archive', item.id, item));
   await writeChunks(Object.entries(state.attendance), 40, ([date, absent]) => writeCloud('attendance', date, { date, absent, updatedAt: new Date().toISOString() }));
+  return publishRoster(state);
 }
 
 function revive(value) {

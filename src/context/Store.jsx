@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { GRADES, OWNER_ID, OWNER_PASSWORD, activeTheme, feminineJob, isManager, jobRole } from '../lib/constants';
-import { cloudSignOut, currentCloudUser, ensureProfile, provisionAccount, pushSnapshot, removeCloud, signInCloud, subscribe, syncBlockMessage, watchAuth, writeCloud } from '../lib/cloud';
+import { cloudSignOut, currentCloudUser, ensureProfile, provisionAccount, pushSnapshot, readOwnProfile, removeCloud, signInCloud, signInExisting, subscribe, syncBlockMessage, watchAuth, writeCloud } from '../lib/cloud';
 import { databaseGuard } from '../firebase';
 import { nowIso, todayISO, weekdayName, formatHijri } from '../lib/dates';
 import { normalizeId, tempPassword, uid } from '../lib/ids';
@@ -114,6 +114,24 @@ function sessionFrom(user) {
 }
 
 const UNREGISTERED = 'غير مصرح بالدخول. هذا السجل غير مسجل في النظام.';
+const CLOUD_LOGIN_FAIL = 'تعذر الدخول من هذا الجهاز. يُقبل السجل إذا كان منشوراً في قاعدة المشروع، وبكلمة المرور المحفوظة عند إنشاء الحساب. كلمة المرور الافتراضية تعمل إلى أن تُغيَّر. إذا استمر الرفض، أعيدي حفظ الحساب من جهاز المالك بعد ظهور «تمت المزامنة مع Firestore».';
+
+function expectedStaffPassword(user, settings) {
+  const fallback = settings.defaultPassword || '123456';
+  if (user?.usesDefaultPassword === false && user.password) return user.password;
+  return fallback;
+}
+
+function markPublished(state, published = []) {
+  if (!published.length) return state;
+  const staffIds = new Set(published.filter((item) => item.kind === 'staff').map((item) => item.nationalId));
+  const studentIds = new Set(published.filter((item) => item.kind === 'student').map((item) => item.nationalId));
+  return {
+    ...state,
+    users: state.users.map((user) => (staffIds.has(user.nationalId) ? { ...user, authPublished: true } : user)),
+    students: state.students.map((student) => (studentIds.has(student.nationalId) ? { ...student, authPublished: true } : student)),
+  };
+}
 
 function registeredStaff(state, nationalId) {
   const id = normalizeId(nationalId);
@@ -323,9 +341,11 @@ export function StoreProvider({ children }) {
       }
       try {
         await ensureProfile({ ...person, role: session.role, job: session.job });
-        if (session.role !== 'student') {
-          await pushSnapshot(dataRef.current);
+        if (session.role === 'owner') {
+          const published = await pushSnapshot(dataRef.current);
           allowDeleteRef.current = true;
+          const marked = markPublished(dataRef.current, published);
+          if (marked !== dataRef.current) commit(marked);
         }
       } catch {
         if (!cancelled) setCloud({ mode: 'error', message: 'تم الدخول، وتعذرت مزامنة بعض البيانات مع Firestore.' });
@@ -371,9 +391,11 @@ export function StoreProvider({ children }) {
     }
     try {
       await ensureProfile(person);
-      if (kind !== 'student') {
-        await pushSnapshot(dataRef.current);
+      if (person.role === 'owner') {
+        const published = await pushSnapshot(dataRef.current);
         allowDeleteRef.current = true;
+        const marked = markPublished(dataRef.current, published);
+        if (marked !== dataRef.current) commit(marked);
       }
       setCloud({ mode: 'synced', message: 'تم الدخول ومزامنة البيانات مع Firestore.' });
     } catch {
@@ -413,12 +435,9 @@ export function StoreProvider({ children }) {
       const locked = guardAttempt(id);
       if (locked) return { ok: false, message: locked };
       const user = registeredStaff(dataRef.current, id);
-      if (!user) {
-        markAttempt(id, false);
-        return { ok: false, message: UNREGISTERED };
-      }
-      const expected = user.usesDefaultPassword ? dataRef.current.settings.defaultPassword : user.password;
-      if (password !== expected) {
+      if (!user) return { ok: false, message: UNREGISTERED };
+      const expected = expectedStaffPassword(user, dataRef.current.settings);
+      if (String(password || '').trim() !== String(expected)) {
         markAttempt(id, false);
         return { ok: false, message: 'كلمة المرور غير صحيحة.' };
       }
@@ -428,20 +447,66 @@ export function StoreProvider({ children }) {
 
     return {
       loginStaff: async (nationalId, password) => {
-        const result = verifyStaff(nationalId, password);
-        if (!result.ok) return result;
-        setSession(sessionFrom(result.user));
-        await connectCloud(result.user, password, 'staff');
+        const id = normalizeId(nationalId);
+        const typed = String(password || '').trim();
+        const local = verifyStaff(id, typed);
+        if (local.ok) {
+          setSession(sessionFrom(local.user));
+          await connectCloud(local.user, typed, 'staff');
+          return { ok: true };
+        }
+        if (local.message !== UNREGISTERED) return local;
+        const cloud = await signInExisting(id, typed, 'staff');
+        if (!cloud.ok) {
+          markAttempt(id, false);
+          return { ok: false, message: CLOUD_LOGIN_FAIL };
+        }
+        const profile = await readOwnProfile();
+        if (!profile || normalizeId(profile.nationalId) !== id || profile.role === 'student') {
+          await cloudSignOut();
+          markAttempt(id, false);
+          return { ok: false, message: 'دخل الحساب السحابي لكن سجل الموظفة غير مكتمل في قاعدة المشروع. أعيدي حفظه من جهاز المالك بعد اكتمال المزامنة.' };
+        }
+        const user = {
+          ...profile,
+          nationalId: id,
+          job: feminineJob(profile.job),
+          role: profile.role,
+          password: profile.usesDefaultPassword === false ? typed : dataRef.current.settings.defaultPassword,
+          usesDefaultPassword: profile.usesDefaultPassword !== false,
+          authPublished: true,
+        };
+        const users = dataRef.current.users.some((item) => normalizeId(item.nationalId) === id)
+          ? dataRef.current.users.map((item) => (normalizeId(item.nationalId) === id ? { ...item, ...user } : item))
+          : [...dataRef.current.users, user];
+        commit({ ...dataRef.current, users });
+        setSession(sessionFrom(user));
+        markAttempt(id, true);
         return { ok: true };
       },
       loginStudent: async (nationalId) => {
         const id = normalizeId(nationalId);
         if (id.length !== 10) return { ok: false, message: 'السجل المدني يجب أن يتكون من 10 أرقام.' };
         const student = registeredStudent(dataRef.current, id);
-        if (!student) return { ok: false, message: UNREGISTERED };
-        const person = { ...student, role: 'student', job: 'طالبة' };
+        if (student) {
+          const person = { ...student, role: 'student', job: 'طالبة' };
+          setSession(sessionFrom(person));
+          await connectCloud(person, id, 'student');
+          return { ok: true };
+        }
+        const cloud = await signInExisting(id, id, 'student');
+        if (!cloud.ok) return { ok: false, message: CLOUD_LOGIN_FAIL };
+        const profile = await readOwnProfile();
+        if (!profile || normalizeId(profile.nationalId) !== id || profile.role !== 'student') {
+          await cloudSignOut();
+          return { ok: false, message: 'دخل الحساب السحابي لكن سجل الطالبة غير مكتمل في قاعدة المشروع. أعيدي حفظه بعد اكتمال المزامنة.' };
+        }
+        const person = { ...profile, nationalId: id, role: 'student', job: 'طالبة', authPublished: true };
+        const students = dataRef.current.students.some((item) => normalizeId(item.nationalId) === id)
+          ? dataRef.current.students
+          : [...dataRef.current.students, person];
+        commit({ ...dataRef.current, students });
         setSession(sessionFrom(person));
-        await connectCloud(person, id, 'student');
         return { ok: true };
       },
       loginWithFingerprint: async () => {
@@ -451,7 +516,7 @@ export function StoreProvider({ children }) {
           const student = registeredStudent(dataRef.current, saved.nationalId);
           if (user) {
             setSession(sessionFrom(user));
-            const password = user.usesDefaultPassword ? dataRef.current.settings.defaultPassword : user.password;
+            const password = expectedStaffPassword(user, dataRef.current.settings);
             await connectCloud(user, password, 'staff');
             return { ok: true };
           }
@@ -539,8 +604,10 @@ export function StoreProvider({ children }) {
         const blocked = syncBlockMessage();
         if (blocked) return { ok: false, web: false, message: blocked };
         try {
-          await pushSnapshot(dataRef.current);
+          const published = await pushSnapshot(dataRef.current);
           allowDeleteRef.current = true;
+          const marked = markPublished(dataRef.current, published);
+          if (marked !== dataRef.current) commit(marked);
           setCloud({ mode: 'synced', message: 'تم حفظ التعديلات على الويب من هذا الجهاز.' });
           return { ok: true, web: true, message: 'تم حفظ التعديلات على الويب.' };
         } catch (error) {
@@ -639,7 +706,14 @@ export function StoreProvider({ children }) {
           ? current.users.map((user) => user.nationalId === nationalId ? record : user)
           : [...current.users, record];
         commit({ ...current, users });
-        cloudTask(() => provisionAccount(nationalId, record.usesDefaultPassword ? current.settings.defaultPassword : record.password, record, 'staff'));
+        cloudTask(async () => {
+          await provisionAccount(nationalId, record.usesDefaultPassword ? current.settings.defaultPassword : record.password, record, 'staff');
+          const latest = dataRef.current;
+          commit({
+            ...latest,
+            users: latest.users.map((user) => (user.nationalId === nationalId ? { ...user, authPublished: true } : user)),
+          });
+        });
         return { ok: true };
       },
       deleteStaff: (nationalId, reason) => {
