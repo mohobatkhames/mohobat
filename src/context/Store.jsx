@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { GRADES, OWNER_ID, OWNER_PASSWORD, activeTheme, feminineJob, isManager, jobRole } from '../lib/constants';
-import { canSync, cloudSignOut, currentCloudUser, ensureProfile, provisionAccount, pushSnapshot, removeCloud, signInCloud, subscribe, watchAuth, writeCloud } from '../lib/cloud';
-import { isFirebaseConfigured } from '../firebase';
+import { cloudSignOut, currentCloudUser, ensureProfile, provisionAccount, pushSnapshot, removeCloud, signInCloud, subscribe, syncBlockMessage, watchAuth, writeCloud } from '../lib/cloud';
+import { databaseGuard } from '../firebase';
 import { nowIso, todayISO, weekdayName, formatHijri } from '../lib/dates';
 import { normalizeId, tempPassword, uid } from '../lib/ids';
 import { cloudSettings, normalizeGateway } from '../lib/gateway';
@@ -197,9 +197,8 @@ export function StoreProvider({ children }) {
   });
   const [savedAt, setSavedAt] = useState(null);
   const [cloud, setCloud] = useState(() => {
-    if (!isFirebaseConfigured()) {
-      return { mode: 'error', message: 'مفاتيح Firebase غير مكتملة. أضيفي القيم الحقيقية في متغيرات البيئة على Render.' };
-    }
+    const blocked = databaseGuard();
+    if (blocked) return { mode: 'error', message: blocked };
     let signedIn = false;
     try {
       signedIn = Boolean(JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'));
@@ -257,7 +256,7 @@ export function StoreProvider({ children }) {
   }, [session, data.students, data.users]);
 
   useEffect(() => {
-    if (!session || !isFirebaseConfigured()) return undefined;
+    if (!session || databaseGuard()) return undefined;
     let cancelled = false;
     let stopListen = () => {};
     setCloud((current) => (current.mode === 'synced' ? current : { mode: 'signing', message: 'جاري تسجيل الدخول' }));
@@ -341,13 +340,9 @@ export function StoreProvider({ children }) {
   }, [session]);
 
   const cloudTask = async (task) => {
-    if (!canSync()) {
-      setCloud({
-        mode: 'error',
-        message: isFirebaseConfigured()
-          ? 'تعذرت المزامنة مع Firestore قبل اكتمال تسجيل الدخول السحابي.'
-          : 'تعذرت المزامنة. مفاتيح Firebase غير مكتملة في متغيرات البيئة.',
-      });
+    const blocked = syncBlockMessage();
+    if (blocked) {
+      setCloud({ mode: 'error', message: blocked });
       return;
     }
     try {
@@ -541,9 +536,8 @@ export function StoreProvider({ children }) {
       saveOnWeb: async () => {
         if (session?.role !== 'owner') return { ok: false, web: false, message: 'الحفظ على الويب متاح للمالك فقط.' };
         commit(dataRef.current);
-        if (!canSync()) {
-          return { ok: false, web: false, message: isFirebaseConfigured() ? 'تعذرت المزامنة مع Firestore قبل اكتمال تسجيل الدخول السحابي.' : 'مفاتيح Firebase غير مكتملة في متغيرات البيئة على Render.' };
-        }
+        const blocked = syncBlockMessage();
+        if (blocked) return { ok: false, web: false, message: blocked };
         try {
           await pushSnapshot(dataRef.current);
           allowDeleteRef.current = true;

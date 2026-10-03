@@ -1,11 +1,23 @@
 import { createUserWithEmailAndPassword, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { collection, deleteDoc, doc, onSnapshot, query, setDoc, where } from 'firebase/firestore';
-import { auth, authEmail, db, ensureFirebase, getSecondaryAuth, isFirebaseConfigured } from '../firebase';
+import { auth, authEmail, databaseGuard, db, ensureFirebase, getSecondaryAuth } from '../firebase';
 import { cloudSettings } from './gateway';
 
-export function canSync() {
+function assertProject() {
   ensureFirebase();
-  return Boolean(isFirebaseConfigured() && db && auth?.currentUser);
+  const blocked = databaseGuard();
+  if (blocked) throw new Error(blocked);
+}
+
+export function canSync() {
+  return databaseGuard() === '' && Boolean(auth?.currentUser);
+}
+
+export function syncBlockMessage() {
+  const blocked = databaseGuard();
+  if (blocked) return blocked;
+  if (!auth?.currentUser) return 'تعذرت المزامنة مع Firestore قبل اكتمال تسجيل الدخول السحابي.';
+  return '';
 }
 
 function clean(record) {
@@ -26,8 +38,8 @@ async function writeChunks(items, size, write) {
 }
 
 export async function signInCloud(nationalId, password, kind) {
-  ensureFirebase();
-  if (!isFirebaseConfigured() || !auth) return { ok: false, skipped: true, message: 'مفاتيح Firebase غير مكتملة في متغيرات البيئة.' };
+  const blocked = databaseGuard();
+  if (blocked || !auth) return { ok: false, skipped: true, message: blocked || 'تعذر الاتصال بقاعدة مشروع موهوبات.' };
   const email = authEmail(nationalId, kind);
   try {
     await signInWithEmailAndPassword(auth, email, password);
@@ -53,7 +65,8 @@ export async function signInCloud(nationalId, password, kind) {
 }
 
 export async function ensureProfile(profile) {
-  if (!canSync()) return;
+  assertProject();
+  if (!auth?.currentUser) return;
   const uid = auth.currentUser.uid;
   await setDoc(doc(db, 'users', uid), {
     ...clean(profile),
@@ -63,7 +76,8 @@ export async function ensureProfile(profile) {
 }
 
 export async function provisionAccount(nationalId, password, profile, kind = 'staff') {
-  if (!canSync()) return;
+  assertProject();
+  if (!auth?.currentUser) return;
   const secondary = getSecondaryAuth();
   let uid = null;
   try {
@@ -78,20 +92,22 @@ export async function provisionAccount(nationalId, password, profile, kind = 'st
 }
 
 export async function writeCloud(collectionName, id, data) {
-  ensureFirebase();
-  if (!canSync()) return;
+  assertProject();
+  if (!auth?.currentUser) return;
   const payload = clean(data);
   if (payload.image && String(payload.image).length > 700000) delete payload.image;
   await setDoc(doc(db, collectionName, String(id)), payload, { merge: true });
 }
 
 export async function removeCloud(collectionName, id) {
-  if (!canSync()) return;
+  assertProject();
+  if (!auth?.currentUser) return;
   await deleteDoc(doc(db, collectionName, String(id)));
 }
 
 export async function pushSnapshot(state) {
-  if (!canSync()) return;
+  assertProject();
+  if (!auth?.currentUser) return;
   const parts = cloudSettings(state.settings);
   await writeCloud('settings', 'general', parts.general);
   await writeCloud('settings', 'security', parts.security);
@@ -124,8 +140,10 @@ function watch(ref, onData, onError) {
 }
 
 export function subscribe(session, onData, onError) {
-  ensureFirebase();
-  if (!db || !session) return () => {};
+  if (databaseGuard() || !db || !session) {
+    onError?.();
+    return () => {};
+  }
   const stops = [];
   const student = session.role === 'student';
 
@@ -169,14 +187,12 @@ export function subscribe(session, onData, onError) {
 }
 
 export function watchAuth(callback) {
-  ensureFirebase();
-  if (!auth) return () => {};
+  if (databaseGuard() || !auth) return () => {};
   return onAuthStateChanged(auth, callback);
 }
 
 export async function currentCloudUser() {
-  ensureFirebase();
-  if (!auth) return null;
+  if (databaseGuard() || !auth) return null;
   if (typeof auth.authStateReady === 'function') await auth.authStateReady();
   return auth.currentUser || null;
 }

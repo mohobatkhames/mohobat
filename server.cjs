@@ -68,17 +68,7 @@ function sendText(res, status, type, body) {
   res.end(body);
 }
 function publicEnv() {
-  const keys = [
-    'REACT_APP_FIREBASE_API_KEY',
-    'REACT_APP_FIREBASE_AUTH_DOMAIN',
-    'REACT_APP_FIREBASE_PROJECT_ID',
-    'REACT_APP_FIREBASE_STORAGE_BUCKET',
-    'REACT_APP_FIREBASE_MESSAGING_SENDER_ID',
-    'REACT_APP_FIREBASE_APP_ID',
-  ];
-  const values = {};
-  for (const key of keys) values[key] = process.env[key] || '';
-  return `window.__MOHOBAT_ENV__ = ${JSON.stringify(values)};`;
+  return 'window.__MOHOBAT_ENV__ = {};';
 }
 
 function sendFile(res, file) {
