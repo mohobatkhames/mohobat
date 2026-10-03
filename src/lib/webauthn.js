@@ -50,7 +50,7 @@ export async function registerFingerprint(nationalId, name) {
 
 export async function loginWithDeviceFingerprint() {
   const saved = savedFingerprint();
-  if (!saved?.credentialId) throw new Error('لم تُسجَّل بصمة على هذا الجهاز بعد. ادخلي بكلمة المرور ثم سجّلي البصمة من القائمة.');
+  if (!saved?.credentialId) throw new Error('لم تُسجَّل بصمة على هذا الجهاز بعد. ادخل بكلمة المرور ثم سجّل البصمة من القائمة.');
   await navigator.credentials.get({
     publicKey: {
       challenge: crypto.getRandomValues(new Uint8Array(32)),

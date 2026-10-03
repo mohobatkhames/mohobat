@@ -74,7 +74,7 @@ export default function ReportsAndCertificates() {
         <div>
           <h2 className="text-2xl font-extrabold">التقارير والشهادات</h2>
           <p className="text-sm text-mute">{data.settings.administrationName}</p>
-          <p className="text-sm text-mute">{DEPARTMENT_NAME}</p>
+          <p className="text-sm text-mute">{data.settings.departmentName || DEPARTMENT_NAME}</p>
           <p className="text-sm text-mute">{data.settings.centerName}</p>
         </div>
         <div className="flex gap-2">
@@ -107,7 +107,7 @@ export default function ReportsAndCertificates() {
         <section className="card p-5">
           <header className="mb-4 text-center">
             <p className="font-bold">{data.settings.administrationName}</p>
-            <p>{DEPARTMENT_NAME}</p>
+            <p>{data.settings.departmentName || DEPARTMENT_NAME}</p>
             <p>{data.settings.centerName}</p>
             <h3 className="mt-2 text-xl font-extrabold">{REPORTS.find((item) => item[0] === report)?.[1]}</h3>
             <p className="text-sm text-mute">{data.settings.semester} · {data.settings.academicYear} · {grade}</p>

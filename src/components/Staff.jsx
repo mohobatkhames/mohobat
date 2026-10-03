@@ -27,8 +27,8 @@ export default function Staff() {
   };
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[340px_1fr]">
-      <section className="card h-fit p-5">
+    <div className="page-grid staff-layout">
+      <section className="card form-sheet box-border h-fit w-full max-w-md p-4 sm:p-5">
         <h2 className="mb-4 text-xl font-extrabold">{editing ? 'تعديل موظفة' : 'إضافة موظفة'}</h2>
         {message && <div className="mb-3"><Banner tone={message.includes('يجب') || message.includes('مطلوب') || message.includes('يمكن') ? 'bad' : 'ok'}>{message}</Banner></div>}
         <form className="space-y-3" onSubmit={submit}>
@@ -45,7 +45,7 @@ export default function Staff() {
             <input className="field" type="date" value={form.joinDate} onChange={set('joinDate')} />
             {form.joinDate ? <span className="mt-1 block text-xs leading-6 text-mute">{formatBoth(form.joinDate)}</span> : null}
           </Field>
-          <button className="btn-primary w-full" type="submit">حفظ</button>
+          <button className="btn-primary box-border w-full max-w-full" type="submit">حفظ</button>
         </form>
       </section>
       <section className="card p-5">

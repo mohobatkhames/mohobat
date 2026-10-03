@@ -25,7 +25,7 @@ function clean(record) {
   if (!record || typeof record !== 'object') return record;
   const copy = {};
   for (const [key, value] of Object.entries(record)) {
-    if (key === 'password' || key === 'pendingSync' || value === undefined) continue;
+    if (key === 'password' || key === 'pendingSync' || key === 'boundProjectId' || value === undefined) continue;
     copy[key] = clean(value);
   }
   return copy;
@@ -39,7 +39,7 @@ async function writeChunks(items, size, write) {
 
 export async function signInCloud(nationalId, password, kind) {
   const blocked = databaseGuard();
-  if (blocked || !auth) return { ok: false, skipped: true, message: blocked || 'تعذر الاتصال بقاعدة مشروع موهوبات.' };
+  if (blocked || !auth) return { ok: false, skipped: true, message: blocked || 'تعذر الاتصال بقاعدة البيانات.' };
   const email = authEmail(nationalId, kind);
   try {
     await signInWithEmailAndPassword(auth, email, password);
@@ -105,7 +105,7 @@ export async function provisionAccount(nationalId, password, profile, kind = 'st
 
 export async function signInExisting(nationalId, password, kind) {
   const blocked = databaseGuard();
-  if (blocked || !auth) return { ok: false, message: blocked || 'تعذر الاتصال بقاعدة مشروع موهوبات.' };
+  if (blocked || !auth) return { ok: false, message: blocked || 'تعذر الاتصال بقاعدة البيانات.' };
   try {
     await signInWithEmailAndPassword(auth, authEmail(nationalId, kind), password);
     return { ok: true };

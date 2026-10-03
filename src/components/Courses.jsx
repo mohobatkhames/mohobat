@@ -50,7 +50,7 @@ export default function Courses() {
     <div className="space-y-4">
       <section className="card p-5">
         <h2 className="mb-4 text-2xl font-extrabold">{form.id ? 'تعديل دورة' : 'إضافة دورة'}</h2>
-        {message && <div className="mb-3"><Banner tone={message.includes('مطلوب') || message.includes('اختاري') ? 'bad' : 'ok'}>{message}</Banner></div>}
+        {message && <div className="mb-3"><Banner tone={message.includes('مطلوب') || message.includes('اختر') ? 'bad' : 'ok'}>{message}</Banner></div>}
         <form className="grid gap-3 md:grid-cols-3" onSubmit={submit}>
           <Field label="اسم الدورة"><input className="field" value={form.name} onChange={set('name')} /></Field>
           <Field label="مكان الانعقاد">

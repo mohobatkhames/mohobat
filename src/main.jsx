@@ -41,3 +41,5 @@ createRoot(document.getElementById('root')).render(
     </Boundary>
   </React.StrictMode>,
 );
+
+document.getElementById('boot-splash')?.remove();

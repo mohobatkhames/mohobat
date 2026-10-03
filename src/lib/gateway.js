@@ -48,7 +48,7 @@ export async function sendViaGateway({ settings, channel, to, message }) {
   const recipients = [...new Set((Array.isArray(to) ? to : [to]).map((item) => String(item || '').trim()).filter(Boolean))];
   if (recipients.length === 0) return { ok: false, mode: 'gateway', message: 'لا توجد أرقام للإرسال.' };
   if (recipients.length > 300) {
-    return { ok: false, mode: 'gateway', message: 'عدد المستلمين أكبر من 300 في الدفعة الواحدة. قلّلي الفئة ثم أعيدي الإرسال.' };
+    return { ok: false, mode: 'gateway', message: 'عدد المستلمين أكبر من 300 في الدفعة الواحدة. قلّل الفئة ثم أعد الإرسال.' };
   }
   try {
     const response = await fetch('/api/gateway', {

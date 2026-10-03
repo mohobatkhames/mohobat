@@ -32,7 +32,7 @@ export default function UploadStudentsExcel() {
       if (result.skipped.length) parts.push(`وتُرك ${result.skipped.length} سجل ناقص`);
       setSummary(`${parts.join('، ')}.`);
     } catch {
-      setError('تعذرت قراءة الملف. استخدمي صيغة xlsx أو csv بعناوين عربية واضحة.');
+      setError('تعذرت قراءة الملف. استخدم صيغة xlsx أو csv بعناوين عربية واضحة.');
     }
   };
 

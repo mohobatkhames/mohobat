@@ -139,7 +139,7 @@ export default function Dashboard() {
           <h3 className="mb-3 text-lg font-extrabold">بيانات تظهر في التقارير</h3>
           <ul className="space-y-2 text-sm leading-7">
             <li>{data.settings.administrationName}</li>
-            <li>{DEPARTMENT_NAME}</li>
+            <li>{data.settings.departmentName || DEPARTMENT_NAME}</li>
             <li>{data.settings.centerName}</li>
             <li>{data.settings.semester} — {data.settings.academicYear}</li>
           </ul>
@@ -210,7 +210,7 @@ export default function Dashboard() {
       </section>
       <section className="card p-4 sm:p-5">
         <h2 className="text-2xl font-extrabold">المدربون والمدربات</h2>
-        <p className="mt-1 text-sm leading-7 text-mute">أضيفي المدرب أو المدربة من هنا. بعد تسجيل الدخول يفتح «حسابي» ويوقّع على الشاشة، فيظهر التوقيع في مكانه على الشهادة.</p>
+        <p className="mt-1 text-sm leading-7 text-mute">أضف المدرب أو المدربة من هنا. بعد تسجيل الدخول يفتح «حسابي» ويوقّع على الشاشة، فيظهر التوقيع في مكانه على الشهادة.</p>
         {trainerForm && (
           <form className="mt-4 grid gap-3" onSubmit={saveTrainer}>
             <Field label="الاسم"><input className="field" value={trainerForm.name} onChange={setTrainerField('name')} /></Field>

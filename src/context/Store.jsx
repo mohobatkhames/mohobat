@@ -1,37 +1,37 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { GRADES, OWNER_ID, OWNER_PASSWORD, activeTheme, feminineJob, isManager, jobRole } from '../lib/constants';
+import { GRADES, activeTheme, feminineJob, isManager, jobRole, ownerIdentity } from '../lib/constants';
 import { cloudSignOut, currentCloudUser, ensureProfile, provisionAccount, pushSnapshot, readOwnProfile, removeCloud, signInCloud, signInExisting, subscribe, syncBlockMessage, watchAuth, writeCloud } from '../lib/cloud';
-import { databaseGuard } from '../firebase';
+import { activeProjectId, centerAttemptsKey, centerDataKey, centerProfile, centerSessionKey, databaseGuard } from '../firebase';
 import { nowIso, todayISO, weekdayName, formatHijri } from '../lib/dates';
 import { normalizeId, tempPassword, uid } from '../lib/ids';
 import { cloudSettings, normalizeGateway } from '../lib/gateway';
 import { loginWithDeviceFingerprint, registerFingerprint } from '../lib/webauthn';
 
-const LOCAL_KEY = 'mohobat-khames-db-v1';
-const SESSION_KEY = 'mohobat-khames-session';
-const ATTEMPTS_KEY = 'mohobat-attempts';
 const StoreContext = createContext(null);
 
 function ownerRecord() {
+  const owner = ownerIdentity();
   return {
-    nationalId: OWNER_ID,
-    name: 'عبدالله الشهراني - أبو نايف',
+    nationalId: owner.nationalId,
+    name: owner.name,
     role: 'owner',
     job: 'مالك',
     phone: '',
     email: '',
     joinDate: todayISO(),
-    password: OWNER_PASSWORD,
+    password: owner.password,
     usesDefaultPassword: false,
     updatedAt: nowIso(),
   };
 }
 
 function defaultState() {
+  const profile = centerProfile();
   return {
     settings: {
-      administrationName: 'الإدارة العامة للتعليم بمنطقة عسير',
-      centerName: 'مركز الموهوبات بخميس مشيط',
+      administrationName: profile.administrationName,
+      departmentName: profile.departmentName,
+      centerName: profile.centerName,
       semester: 'الفصل الدراسي الأول',
       academicYear: '1447 / 1448',
       defaultPassword: '123456',
@@ -64,23 +64,18 @@ function defaultState() {
 
 function withOwner(state) {
   const users = state.users || [];
-  const owner = users.find((user) => user.role === 'owner' || user.nationalId === OWNER_ID);
+  const identity = ownerIdentity();
+  const owner = users.find((user) => user.role === 'owner' || user.nationalId === identity.nationalId);
   if (!owner) return { ...state, users: [ownerRecord(), ...users] };
-  if (owner.name === 'مالك النظام') {
-    return {
-      ...state,
-      users: users.map((user) => (user.role === 'owner' || user.nationalId === OWNER_ID)
-        ? { ...user, name: 'عبدالله الشهراني - أبو نايف' }
-        : user),
-    };
-  }
   return state;
 }
 
 function loadState() {
   try {
-    const parsed = JSON.parse(localStorage.getItem(LOCAL_KEY) || 'null');
+    const parsed = JSON.parse(localStorage.getItem(centerDataKey()) || 'null');
     if (!parsed) return defaultState();
+    if (parsed.boundProjectId && parsed.boundProjectId !== activeProjectId()) return defaultState();
+    delete parsed.boundProjectId;
     const base = defaultState();
     return withOwner({
       ...base,
@@ -114,7 +109,7 @@ function sessionFrom(user) {
 }
 
 const UNREGISTERED = 'غير مصرح بالدخول. هذا السجل غير مسجل في النظام.';
-const CLOUD_LOGIN_FAIL = 'تعذر الدخول من هذا الجهاز. يُقبل السجل إذا كان منشوراً في قاعدة المشروع، وبكلمة المرور المحفوظة عند إنشاء الحساب. كلمة المرور الافتراضية تعمل إلى أن تُغيَّر. إذا استمر الرفض، أعيدي حفظ الحساب من جهاز المالك بعد ظهور «تمت المزامنة مع Firestore».';
+const CLOUD_LOGIN_FAIL = 'تعذر الدخول من هذا الجهاز. يُقبل السجل إذا كان منشوراً في قاعدة المشروع، وبكلمة المرور المحفوظة عند إنشاء الحساب. كلمة المرور الافتراضية تعمل إلى أن تُغيَّر. إذا استمر الرفض، أعد حفظ الحساب من جهاز المالك بعد ظهور «تمت المزامنة مع Firestore».';
 
 function expectedStaffPassword(user, settings) {
   const fallback = settings.defaultPassword || '123456';
@@ -147,10 +142,15 @@ function registeredStudent(state, nationalId) {
 
 function readAttempts() {
   try {
-    return JSON.parse(sessionStorage.getItem(ATTEMPTS_KEY) || '{}');
+    return JSON.parse(sessionStorage.getItem(centerAttemptsKey()) || '{}');
   } catch {
     return {};
   }
+}
+
+function persistState(state) {
+  const projectId = activeProjectId();
+  localStorage.setItem(centerDataKey(projectId), JSON.stringify({ ...state, boundProjectId: projectId }));
 }
 
 function newer(item, prev) {
@@ -188,7 +188,7 @@ function mergeUsers(current, incoming, defaultPassword) {
       map.set(item.nationalId, {
         ...item,
         job: feminineJob(item.job),
-        password: item.role === 'owner' ? OWNER_PASSWORD : defaultPassword,
+        password: item.role === 'owner' ? ownerIdentity().password : defaultPassword,
         usesDefaultPassword: item.role !== 'owner',
       });
     } else if (newer(item, prev)) {
@@ -208,7 +208,10 @@ export function StoreProvider({ children }) {
   const [data, setData] = useState(loadState);
   const [session, setSession] = useState(() => {
     try {
-      return JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
+      const raw = sessionStorage.getItem(centerSessionKey());
+      const parsed = JSON.parse(raw || 'null');
+      if (parsed?.boundProjectId && parsed.boundProjectId !== activeProjectId()) return null;
+      return parsed;
     } catch {
       return null;
     }
@@ -219,7 +222,7 @@ export function StoreProvider({ children }) {
     if (blocked) return { mode: 'error', message: blocked };
     let signedIn = false;
     try {
-      signedIn = Boolean(JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'));
+      signedIn = Boolean(JSON.parse(sessionStorage.getItem(centerSessionKey()) || 'null'));
     } catch {
       signedIn = false;
     }
@@ -234,7 +237,7 @@ export function StoreProvider({ children }) {
     dataRef.current = next;
     setData(next);
     try {
-      localStorage.setItem(LOCAL_KEY, JSON.stringify(next));
+      persistState(next);
       setSavedAt(new Date().toISOString());
     } catch {
       setCloud({ mode: 'error', message: 'تعذرت تهيئة البيانات في المتصفح.' });
@@ -249,7 +252,7 @@ export function StoreProvider({ children }) {
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
-        localStorage.setItem(LOCAL_KEY, JSON.stringify(dataRef.current));
+        persistState(dataRef.current);
         setSavedAt(new Date().toISOString());
       } catch {
         setCloud({ mode: 'error', message: 'تعذرت تهيئة البيانات في المتصفح.' });
@@ -259,8 +262,9 @@ export function StoreProvider({ children }) {
   }, [data]);
 
   useEffect(() => {
-    if (session) sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
-    else sessionStorage.removeItem(SESSION_KEY);
+    const key = centerSessionKey();
+    if (session) sessionStorage.setItem(key, JSON.stringify({ ...session, boundProjectId: activeProjectId() }));
+    else sessionStorage.removeItem(key);
   }, [session]);
 
   useEffect(() => {
@@ -425,7 +429,7 @@ export function StoreProvider({ children }) {
       }
       attempts[nationalId] = record;
     }
-    sessionStorage.setItem(ATTEMPTS_KEY, JSON.stringify(attempts));
+    sessionStorage.setItem(centerAttemptsKey(), JSON.stringify(attempts));
   };
 
   const api = useMemo(() => {
@@ -465,7 +469,7 @@ export function StoreProvider({ children }) {
         if (!profile || normalizeId(profile.nationalId) !== id || profile.role === 'student') {
           await cloudSignOut();
           markAttempt(id, false);
-          return { ok: false, message: 'دخل الحساب السحابي لكن سجل الموظفة غير مكتمل في قاعدة المشروع. أعيدي حفظه من جهاز المالك بعد اكتمال المزامنة.' };
+          return { ok: false, message: 'دخل الحساب السحابي لكن سجل الموظفة غير مكتمل في قاعدة المشروع. أعد حفظه من جهاز المالك بعد اكتمال المزامنة.' };
         }
         const user = {
           ...profile,
@@ -499,7 +503,7 @@ export function StoreProvider({ children }) {
         const profile = await readOwnProfile();
         if (!profile || normalizeId(profile.nationalId) !== id || profile.role !== 'student') {
           await cloudSignOut();
-          return { ok: false, message: 'دخل الحساب السحابي لكن سجل الطالبة غير مكتمل في قاعدة المشروع. أعيدي حفظه بعد اكتمال المزامنة.' };
+          return { ok: false, message: 'دخل الحساب السحابي لكن سجل الطالبة غير مكتمل في قاعدة المشروع. أعد حفظه بعد اكتمال المزامنة.' };
         }
         const person = { ...profile, nationalId: id, role: 'student', job: 'طالبة', authPublished: true };
         const students = dataRef.current.students.some((item) => normalizeId(item.nationalId) === id)
@@ -531,7 +535,7 @@ export function StoreProvider({ children }) {
         }
       },
       registerFingerprint: async () => {
-        if (!session) return { ok: false, message: 'سجّلي الدخول أولاً.' };
+        if (!session) return { ok: false, message: 'سجّل الدخول أولاً.' };
         try {
           await registerFingerprint(session.nationalId, session.name);
           return { ok: true, message: 'تم تسجيل البصمة على هذا الجهاز.' };
@@ -575,7 +579,7 @@ export function StoreProvider({ children }) {
         if ('showSignatureOnCertificates' in patch) next.showSignatureOnCertificates = Boolean(patch.showSignatureOnCertificates);
         if ('showSignatureOnReports' in patch) next.showSignatureOnReports = Boolean(patch.showSignatureOnReports);
         if (next.signature && String(next.signature).length > 700000) {
-          return { ok: false, message: 'صورة التوقيع أكبر من المناسب. استخدمي صورة أصغر.' };
+          return { ok: false, message: 'صورة التوقيع أكبر من المناسب. استخدم صورة أصغر.' };
         }
         const current = dataRef.current;
         const settings = { ...current.settings, ...next, updatedAt: nowIso() };
@@ -621,7 +625,7 @@ export function StoreProvider({ children }) {
         const nationalId = normalizeId(student.nationalId);
         if (nationalId.length !== 10) return { ok: false, message: 'السجل المدني يجب أن يتكون من 10 أرقام.' };
         if (!student.name?.trim()) return { ok: false, message: 'اسم الطالبة مطلوب.' };
-        if (!GRADES.includes(student.grade)) return { ok: false, message: 'اختاري صفاً من الرابع الابتدائي إلى الثالث الثانوي.' };
+        if (!GRADES.includes(student.grade)) return { ok: false, message: 'اختر صفاً من الرابع الابتدائي إلى الثالث الثانوي.' };
         const record = {
           ...student,
           nationalId,
@@ -686,7 +690,7 @@ export function StoreProvider({ children }) {
         const current = dataRef.current;
         const nationalId = normalizeId(staff.nationalId);
         if (nationalId.length !== 10) return { ok: false, message: 'السجل المدني يجب أن يتكون من 10 أرقام.' };
-        if (nationalId === OWNER_ID) return { ok: false, message: 'لا يمكن تعديل سجل المالك من نموذج الموظفات.' };
+        if (nationalId === ownerIdentity().nationalId) return { ok: false, message: 'لا يمكن تعديل سجل المالك من نموذج الموظفات.' };
         if (!staff.name?.trim()) return { ok: false, message: 'الاسم مطلوب.' };
         const prev = current.users.find((user) => user.nationalId === nationalId);
         const record = {
@@ -717,7 +721,7 @@ export function StoreProvider({ children }) {
         return { ok: true };
       },
       deleteStaff: (nationalId, reason) => {
-        if (nationalId === OWNER_ID) return { ok: false, message: 'لا يمكن حذف المالك.' };
+        if (nationalId === ownerIdentity().nationalId) return { ok: false, message: 'لا يمكن حذف المالك.' };
         const cause = String(reason || '').trim();
         if (!cause) return { ok: false, message: 'سبب الحذف مطلوب.' };
         const current = dataRef.current;
@@ -810,7 +814,7 @@ export function StoreProvider({ children }) {
         const current = dataRef.current;
         if (!course.name?.trim()) return { ok: false, message: 'اسم الدورة مطلوب.' };
         if (!course.date && !course.hijri) return { ok: false, message: 'تاريخ التنفيذ مطلوب.' };
-        if (!GRADES.includes(course.grade)) return { ok: false, message: 'اختاري صفاً دراسياً.' };
+        if (!GRADES.includes(course.grade)) return { ok: false, message: 'اختر صفاً دراسياً.' };
         const date = course.date || todayISO();
         const invitees = { ...(course.invitees || {}) };
         current.students.filter((student) => student.grade === course.grade).forEach((student) => {

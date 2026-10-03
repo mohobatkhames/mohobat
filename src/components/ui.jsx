@@ -52,7 +52,7 @@ export function Modal({ title, onClose, children }) {
 
 export function Field({ label, children }) {
   return (
-    <label className="block">
+    <label className="box-border block min-w-0 w-full max-w-full">
       <span className="label">{label}</span>
       {children}
     </label>
@@ -77,7 +77,7 @@ export function GradeSelect({ value, onChange, includeAll = false }) {
   return (
     <select className="field" value={value} onChange={(event) => onChange(event.target.value)}>
       {includeAll && <option value="الكل">جميع الصفوف</option>}
-      {!includeAll && <option value="">اختاري الصف</option>}
+      {!includeAll && <option value="">اختر الصف</option>}
       {grades.map((grade) => <option key={grade} value={grade}>{grade}</option>)}
     </select>
   );

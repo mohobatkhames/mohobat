@@ -22,7 +22,7 @@ export default function DirectorSignature() {
         title="توقيع المديرة"
         signature={settings.signature}
         previewAlt="توقيع المديرة"
-        emptyMessage="وقّعي على اللوحة أولًا."
+        emptyMessage="وقّع على اللوحة أولًا."
         onSave={(signature) => saveDirectorSignature({ signature })}
         onDelete={() => saveDirectorSignature({ signature: '', showSignatureOnCertificates: false, showSignatureOnReports: false })}
       />

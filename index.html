@@ -6,17 +6,58 @@
     <meta name="theme-color" content="#0b3a66" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="موهوبات" />
-    <title>نظام موهوبات | مركز الموهوبات بخميس مشيط</title>
+    <title>نظام موهوبات</title>
+    <style>
+      html, body { margin: 0; background: #0b3a66; }
+      #boot-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 80;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.85rem;
+        box-sizing: border-box;
+        padding: max(1.5rem, env(safe-area-inset-top)) 1.25rem max(1.5rem, env(safe-area-inset-bottom));
+        background:
+          radial-gradient(520px 280px at 50% 0%, rgba(29, 111, 184, 0.45), transparent 60%),
+          #0b3a66;
+        color: #fff;
+        text-align: center;
+        font-family: Tajawal, "Segoe UI", Tahoma, sans-serif;
+      }
+      #boot-splash img {
+        width: 6.5rem;
+        height: 6.5rem;
+        object-fit: contain;
+      }
+      #boot-splash strong {
+        font-size: 1.8rem;
+        font-weight: 800;
+        letter-spacing: 0;
+      }
+      #boot-splash span {
+        font-size: 0.95rem;
+        opacity: 0.86;
+      }
+    </style>
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icons/icon-192.png" type="image/png" sizes="192x192" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="apple-touch-startup-image" href="/icons/icon-512.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
   </head>
   <body>
+    <div id="boot-splash" role="status" aria-live="polite">
+      <img src="/icons/icon-192.png" alt="" />
+      <strong>موهوبات</strong>
+      <span>جاري فتح النظام</span>
+    </div>
     <div id="root"></div>
     <script src="/env.js"></script>
     <script type="module" src="/src/main.jsx"></script>

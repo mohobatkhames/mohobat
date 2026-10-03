@@ -34,11 +34,11 @@ export default function SettingsPanel() {
         return;
       }
       if (!gateway.apiKey || !gateway.senderId) {
-        setMessage('أدخلي مفتاح الربط ومعرّف المرسل قبل تفعيل المزود.');
+        setMessage('أدخل مفتاح الربط ومعرّف المرسل قبل تفعيل المزود.');
         return;
       }
       if (!gateway.sms && !gateway.whatsapp) {
-        setMessage('اختاري SMS أو واتساب أو كليهما لاستخدام المزود.');
+        setMessage('اختر SMS أو واتساب أو كليهما لاستخدام المزود.');
         return;
       }
     }
@@ -60,6 +60,9 @@ export default function SettingsPanel() {
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="الإدارة العامة">
               <input className="field" value={form.administrationName} onChange={set('administrationName')} />
+            </Field>
+            <Field label="القسم">
+              <input className="field" value={form.departmentName || ''} onChange={set('departmentName')} />
             </Field>
             <Field label="اسم المركز">
               <input className="field" value={form.centerName} onChange={set('centerName')} />
@@ -85,7 +88,7 @@ export default function SettingsPanel() {
         </section>
         <section className="card p-6">
           <h2 className="mb-2 text-2xl font-extrabold">مزود الرسائل</h2>
-          <p className="mb-4 text-sm leading-7 text-mute">أدخلي بيانات أي مزود خارجي. عند التفعيل تُرسل رسائل SMS وواتساب عبر هذا الاشتراك، وتبديل المزود يتم من هنا دون تعديل الكود. إذا تُرك التعطيل، يبقى إرسال واتساب المجاني ورسائل الجوال من الجهاز.</p>
+          <p className="mb-4 text-sm leading-7 text-mute">أدخل بيانات أي مزود خارجي. عند التفعيل تُرسل رسائل SMS وواتساب عبر هذا الاشتراك، وتبديل المزود يتم من هنا دون تعديل الكود. إذا تُرك التعطيل، يبقى إرسال واتساب المجاني ورسائل الجوال من الجهاز.</p>
           <div className="grid gap-4 md:grid-cols-2">
             <label className="flex items-center gap-3 rounded-2xl bg-[var(--soft)] px-4 py-3 md:col-span-2">
               <input type="checkbox" checked={gateway.enabled} onChange={(event) => setGateway('enabled', event.target.checked)} />

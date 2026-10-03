@@ -152,10 +152,10 @@ export default function CoursesAndMessages({ initialTab = 'courses' }) {
       setErrorMsg('لا توجد مستقبلات مطابقة.');
       return;
     }
-    const confirmed = window.confirm('مطلوب تأكيد: هل أنت متأكدة من إرسال الرسالة للمستهدفات على النظام والبريد الإلكتروني؟');
+    const confirmed = window.confirm('مطلوب تأكيد: هل أنت متأكد من إرسال الرسالة للمستهدفين على النظام والبريد الإلكتروني؟');
     if (!confirmed) return;
     const payload = {
-      title: 'رسالة من مركز الموهوبات',
+      title: 'رسالة من المركز',
       body: messageForm.text.trim(),
       image: messageForm.image,
       recipientIds: recipients.map((person) => person.nationalId),
@@ -204,7 +204,7 @@ export default function CoursesAndMessages({ initialTab = 'courses' }) {
         <div>
           <h2 className="text-2xl font-extrabold">إدارة البرامج والدورات والرسائل</h2>
           <p className="mt-1 text-sm leading-7 text-mute">{data.settings.administrationName}</p>
-          <p className="text-sm leading-7 text-mute">{DEPARTMENT_NAME}</p>
+          <p className="text-sm leading-7 text-mute">{data.settings.departmentName || DEPARTMENT_NAME}</p>
           <p className="text-sm leading-7 text-mute">{data.settings.centerName}</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -255,7 +255,7 @@ export default function CoursesAndMessages({ initialTab = 'courses' }) {
               <label className="block">
                 <span className="label">المدرب / المدربة</span>
                 <select className="field" required value={courseForm.trainer} onChange={(event) => setCourseForm({ ...courseForm, trainer: event.target.value })}>
-                  <option value="">اختاري من المدربين المضافين في لوحة التحكم</option>
+                  <option value="">اختر من المدربين المضافين في لوحة التحكم</option>
                   {data.users.filter((user) => user.role === 'trainer').map((user) => (
                     <option key={user.nationalId} value={user.name}>{user.name} — {user.job}</option>
                   ))}
@@ -348,7 +348,7 @@ export default function CoursesAndMessages({ initialTab = 'courses' }) {
               <label className="block">
                 <span className="label">الطالبة</span>
                 <select className="field" value={messageForm.selectedStudent} onChange={(event) => setMessageForm({ ...messageForm, selectedStudent: event.target.value })}>
-                  <option value="">اختاري الطالبة</option>
+                  <option value="">اختر الطالبة</option>
                   {students.map((student) => <option key={student.nationalId} value={student.nationalId}>{student.name} — {student.grade}</option>)}
                 </select>
               </label>

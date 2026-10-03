@@ -43,7 +43,7 @@ export default function Students() {
       {tab === 'import' && <section className="card p-5"><UploadStudentsExcel /></section>}
 
       {tab === 'add' && (
-        <section className="card p-5">
+        <section className="card form-sheet box-border w-full max-w-md p-4 sm:max-w-3xl sm:p-5">
           {!canManage && <Banner tone="warn">التعديل والحذف متاحان لإدارة المركز.</Banner>}
           {message && <div className="mb-3"><Banner tone={message.includes('يجب') || message.includes('مطلوب') || message.includes('خارج') ? 'bad' : 'ok'}>{message}</Banner></div>}
           <form className="grid gap-3 md:grid-cols-2" onSubmit={submit}>

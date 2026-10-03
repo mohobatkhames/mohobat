@@ -1,7 +1,15 @@
-const env = import.meta.env ?? {};
-export const DEPARTMENT_NAME = 'إدارة تنمية القدرات-قسم الموهوبين';
-export const OWNER_ID = env.REACT_APP_OWNER_ID || '1025774389';
-export const OWNER_PASSWORD = env.REACT_APP_OWNER_PASSWORD || 'Aa9834775201';
+import { readProjectSetup } from '../firebase';
+
+export const DEPARTMENT_NAME = 'قسم الموهوبين';
+
+export function ownerIdentity() {
+  const setup = readProjectSetup() || {};
+  return {
+    nationalId: String(setup.ownerId || ''),
+    password: String(setup.ownerPassword || ''),
+    name: String(setup.ownerName || 'المالك').trim() || 'المالك',
+  };
+}
 
 export const GRADES = [
   'الرابع الابتدائي',

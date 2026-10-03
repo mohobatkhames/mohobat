@@ -101,6 +101,21 @@
 
 * { box-sizing: border-box; }
 
+input, select, textarea, button {
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+input[type='date'],
+input[type='time'],
+input[type='datetime-local'] {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
 html, body, #root {
   min-height: 100%;
   max-width: 100%;
@@ -136,10 +151,35 @@ button, input, select, textarea { font-family: inherit; }
 }
 
 .card {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 1.4rem;
   box-shadow: 0 18px 50px var(--shadow);
+}
+
+.form-sheet {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.page-grid {
+  box-sizing: border-box;
+  display: grid;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  gap: 1rem;
+}
+
+.page-grid > * {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .btn, .btn-primary, .btn-ghost, .btn-soft, .btn-danger {
@@ -441,6 +481,21 @@ table.data tr + tr td { border-top: 1px solid var(--line); }
   .btn-primary, .btn-soft, .btn-ghost, .btn-danger { white-space: normal; }
   table.data th, table.data td { white-space: normal; }
   .certificate-sheet { padding: 1.2rem 0.8rem; border-width: 6px; }
+  .card { padding: 1rem; }
+  .form-sheet {
+    max-width: 28rem;
+    margin-inline: auto;
+  }
+}
+
+@media (min-width: 1280px) {
+  .page-grid.staff-layout {
+    grid-template-columns: minmax(0, 22rem) minmax(0, 1fr);
+  }
+  .staff-layout .form-sheet {
+    max-width: none;
+    margin-inline: 0;
+  }
 }
 
 @media (min-width: 768px) {

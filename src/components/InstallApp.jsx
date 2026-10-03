@@ -126,10 +126,10 @@ export default function InstallApp({ compact = false }) {
         <button className="btn-primary mt-3 w-full" type="button" onClick={install}>تثبيت على هذا الجهاز</button>
       )}
       {ios && (
-        <p className="mt-2">على الآيفون: اضغطي زر المشاركة ثم «إضافة إلى الشاشة الرئيسية».</p>
+        <p className="mt-2">على الآيفون: اضغط زر المشاركة ثم «إضافة إلى الشاشة الرئيسية».</p>
       )}
       {!ios && !prompt && (
-        <p className="mt-2">من قائمة المتصفح اختاري «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية».</p>
+        <p className="mt-2">من قائمة المتصفح اختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية».</p>
       )}
     </section>
   );

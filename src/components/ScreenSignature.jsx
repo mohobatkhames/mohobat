@@ -102,7 +102,7 @@ export default function ScreenSignature({
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       setTone('bad');
-      setNote('اختاري ملف صورة للتوقيع.');
+      setNote('اختر ملف صورة للتوقيع.');
       return;
     }
     try {

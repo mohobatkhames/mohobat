@@ -28,7 +28,7 @@ export default function WhatsAppSend({ students = [], title = 'إرسال وات
     const body = text.trim();
     if (!body) {
       setTone('bad');
-      setNote('اكتبي نص رسالة الواتساب.');
+      setNote('اكتب نص رسالة الواتساب.');
       setPrepared([]);
       return;
     }
@@ -54,8 +54,8 @@ export default function WhatsAppSend({ students = [], title = 'إرسال وات
     setPrepared(chats);
     setTone(result.opened ? 'ok' : 'bad');
     setNote(result.opened
-      ? `فُتحت محادثة واتساب لـ ${chats[0].name}. أكملي الإرسال بالضغط على إرسال داخل واتساب.`
-      : 'منعي النوافذ لم يُفتح واتساب. استخدمي زر فتح المحادثة أمام الاسم.');
+      ? `فُتحت محادثة واتساب لـ ${chats[0].name}. أكمل الإرسال بالضغط على إرسال داخل واتساب.`
+      : 'منع النوافذ لم يفتح واتساب. استخدم زر فتح المحادثة أمام الاسم.');
   };
 
   return (
@@ -101,7 +101,7 @@ export default function WhatsAppSend({ students = [], title = 'إرسال وات
       </ul>
       <label className="block">
         <span className="label">نص الرسالة</span>
-        <textarea className="field min-h-28" value={text} onChange={(event) => setText(event.target.value)} placeholder="اكتبي رسالة الواتساب" />
+        <textarea className="field min-h-28" value={text} onChange={(event) => setText(event.target.value)} placeholder="اكتب رسالة الواتساب" />
       </label>
       <button className="btn-primary" type="submit">إرسال عبر واتساب</button>
       {prepared.length > 1 && (

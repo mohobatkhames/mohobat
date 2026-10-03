@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { DEPARTMENT_NAME, ROLE_LABELS } from '../lib/constants';
+import { activeProjectId } from '../firebase';
 import { formatBothDateTime } from '../lib/dates';
 import { navigate, pageFromPath, pathFromPage } from '../lib/routes';
 import { useStore } from '../context/Store';
@@ -71,11 +72,12 @@ export default function Layout() {
   };
 
   return (
-    <div className="bg-app min-h-screen lg:grid lg:grid-cols-[280px_1fr]" dir="rtl">
+    <div className="bg-app box-border min-h-screen min-w-0 max-w-full overflow-x-hidden lg:grid lg:grid-cols-[280px_minmax(0,1fr)]" dir="rtl">
       <aside className={`no-print card z-30 m-3 p-4 lg:m-4 ${open ? 'block' : 'hidden lg:block'}`}>
         <div className="mb-6 px-2">
           <p className="text-xs font-bold text-[var(--accent)]">نظام موهوبات</p>
           <h1 className="text-2xl font-extrabold">{store.data.settings.centerName}</h1>
+          <p className="mt-1 text-xs text-mute" dir="ltr">{activeProjectId()}</p>
         </div>
         <nav className="space-y-1">
           {visible.map(([id, label]) => (
@@ -101,7 +103,7 @@ export default function Layout() {
             <button className="btn-ghost shrink-0 lg:hidden" type="button" onClick={() => setOpen((value) => !value)}>القائمة</button>
             <div className="min-w-0 flex-1">
               <p className="text-sm leading-6 text-mute">{store.data.settings.administrationName}</p>
-              <p className="text-sm leading-6 text-mute">{DEPARTMENT_NAME}</p>
+              <p className="text-sm leading-6 text-mute">{store.data.settings.departmentName || DEPARTMENT_NAME}</p>
               <p className="break-words font-extrabold leading-7">{store.session.name} · {store.session.role === 'trainer' ? (store.session.job || ROLE_LABELS.trainer) : ROLE_LABELS[store.session.role]}</p>
             </div>
           </div>
@@ -121,7 +123,7 @@ export default function Layout() {
             {store.cloud.mode === 'synced' && store.savedAt ? <span className="mx-1 inline whitespace-normal">آخر مزامنة {formatBothDateTime(store.savedAt)}</span> : null}
           </Banner>
         </div>
-        <main className="w-full max-w-full overflow-x-hidden px-3 py-4 sm:px-4">
+        <main className="box-border w-full min-w-0 max-w-full overflow-x-hidden px-3 py-4 sm:px-4" style={{ paddingInline: 'max(0.75rem, env(safe-area-inset-left), env(safe-area-inset-right))', paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
           <Active />
         </main>
       </div>
