@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { GRADES, activeTheme, feminineJob, isManager, jobRole, ownerIdentity } from '../lib/constants';
 import { cloudSignOut, currentCloudUser, ensureProfile, provisionAccount, pushSnapshot, readOwnProfile, removeCloud, signInCloud, signInExisting, subscribe, syncBlockMessage, watchAuth, writeCloud } from '../lib/cloud';
-import { activeProjectId, centerAttemptsKey, centerDataKey, centerProfile, centerSessionKey, databaseGuard } from '../firebase';
+import { activeProjectId, centerAttemptsKey, centerDataKey, centerProfile, centerSessionKey, databaseGuard, legacyDataKey, legacySessionKey, readCenterValue } from '../firebase';
 import { nowIso, todayISO, weekdayName, formatHijri } from '../lib/dates';
 import { normalizeId, tempPassword, uid } from '../lib/ids';
 import { cloudSettings, normalizeGateway } from '../lib/gateway';
@@ -72,7 +72,7 @@ function withOwner(state) {
 
 function loadState() {
   try {
-    const parsed = JSON.parse(localStorage.getItem(centerDataKey()) || 'null');
+    const parsed = JSON.parse(readCenterValue(localStorage, centerDataKey(), legacyDataKey) || 'null');
     if (!parsed) return defaultState();
     if (parsed.boundProjectId && parsed.boundProjectId !== activeProjectId()) return defaultState();
     delete parsed.boundProjectId;
@@ -208,7 +208,7 @@ export function StoreProvider({ children }) {
   const [data, setData] = useState(loadState);
   const [session, setSession] = useState(() => {
     try {
-      const raw = sessionStorage.getItem(centerSessionKey());
+      const raw = readCenterValue(sessionStorage, centerSessionKey(), legacySessionKey);
       const parsed = JSON.parse(raw || 'null');
       if (parsed?.boundProjectId && parsed.boundProjectId !== activeProjectId()) return null;
       return parsed;
@@ -222,7 +222,7 @@ export function StoreProvider({ children }) {
     if (blocked) return { mode: 'error', message: blocked };
     let signedIn = false;
     try {
-      signedIn = Boolean(JSON.parse(sessionStorage.getItem(centerSessionKey()) || 'null'));
+      signedIn = Boolean(JSON.parse(readCenterValue(sessionStorage, centerSessionKey(), legacySessionKey) || 'null'));
     } catch {
       signedIn = false;
     }

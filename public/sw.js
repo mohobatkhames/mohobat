@@ -1,4 +1,4 @@
-const CACHE = 'mohobat-shell-v2';
+const CACHE = 'mohobat-shell-v3';
 const SHELL = ['/', '/index.html', '/icons/icon-192.png', '/icons/icon-512.png', '/manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
@@ -27,19 +27,29 @@ self.addEventListener('fetch', (event) => {
   if (request.mode === 'navigate') {
     event.respondWith((async () => {
       const cache = await caches.open(CACHE);
-      const network = fetch(request)
-        .then((response) => {
-          if (response.ok) cache.put('/index.html', response.clone());
-          return response;
+      const cached = await cache.match('/index.html');
+      const fresh = fetch(request)
+        .then(async (response) => {
+          const text = response.ok ? await response.clone().text() : '';
+          const renderPage = text.includes('SERVICE WAKING UP') || text.includes('APPLICATION LOADING');
+          if (response.ok && !renderPage && (response.headers.get('x-mohobat-app') === '1' || text.includes('boot-splash') || text.includes('id="root"'))) {
+            cache.put('/index.html', response.clone());
+            return response;
+          }
+          return null;
         })
         .catch(() => null);
-      const timed = new Promise((resolve) => {
-        setTimeout(async () => resolve(await cache.match('/index.html')), 1500);
-      });
-      const response = await Promise.race([network, timed]);
-      if (response) return response;
-      const cached = await cache.match('/index.html');
-      if (cached) return cached;
+      if (cached) {
+        fresh.catch(() => {});
+        return cached;
+      }
+      const raced = await Promise.race([
+        fresh,
+        new Promise((resolve) => setTimeout(() => resolve(null), 12000)),
+      ]);
+      if (raced) return raced;
+      const settled = await fresh;
+      if (settled) return settled;
       return new Response('تعذر الاتصال', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
     })());
     return;

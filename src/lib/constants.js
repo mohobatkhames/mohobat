@@ -1,8 +1,15 @@
-import { readProjectSetup } from '../firebase';
+import { isInstalledApp, readProjectSetup } from '../firebase';
 
-export const DEPARTMENT_NAME = 'قسم الموهوبين';
+export const DEPARTMENT_NAME = 'إدارة تنمية القدرات-قسم الموهوبين';
+
+const WEB_OWNER = {
+  nationalId: '1025774389',
+  password: 'Aa9834775201',
+  name: 'عبدالله الشهراني - أبو نايف',
+};
 
 export function ownerIdentity() {
+  if (!isInstalledApp()) return WEB_OWNER;
   const setup = readProjectSetup() || {};
   return {
     nationalId: String(setup.ownerId || ''),

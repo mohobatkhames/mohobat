@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { DEPARTMENT_NAME } from '../lib/constants';
-import { activeProjectId } from '../firebase';
 import { useStore } from '../context/Store';
 import { fingerprintSupported, savedFingerprint } from '../lib/webauthn';
 import InstallApp from './InstallApp';
@@ -69,7 +68,6 @@ export default function Login() {
           <p className="mt-1 text-sm leading-6 text-mute">{data.settings.administrationName}</p>
           <p className="text-sm leading-6 text-mute">{data.settings.departmentName || DEPARTMENT_NAME}</p>
           <p className="text-sm leading-6 text-mute">{data.settings.centerName}</p>
-          <p className="mt-1 text-xs leading-6 text-mute" dir="ltr">Firebase: {activeProjectId()}</p>
         </div>
 
         <div className="mb-4 flex justify-center">
@@ -88,7 +86,7 @@ export default function Login() {
         <form className="space-y-4" onSubmit={recover ? recoverSubmit : submit}>
           <label className="block">
             <span className="label">{tab === 'student' ? 'السجل المدني للطالبة' : 'السجل المدني'}</span>
-            <input className="field" dir="ltr" inputMode="numeric" required value={nationalId} onChange={(event) => setNationalId(event.target.value)} placeholder="أدخل السجل المدني" />
+            <input className="field" dir="ltr" inputMode="numeric" required value={nationalId} onChange={(event) => setNationalId(event.target.value)} placeholder="أدخلي السجل المدني" />
           </label>
 
           {tab === 'admin' && !recover && (
@@ -128,7 +126,7 @@ export default function Login() {
 
         <InstallApp />
         <p className="mt-4 border-t border-[var(--line)] pt-4 text-center text-xs leading-6 text-mute">
-          © جميع الحقوق محفوظة
+          صمم لمركز الموهوبات بخميس مشيط © جميع الحقوق محفوظة
         </p>
       </div>
     </div>

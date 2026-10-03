@@ -64,14 +64,23 @@ service cloud.firestore {
           && request.resource.data.role == 'owner'
           && request.resource.data.nationalId is string
           && request.resource.data.nationalId.size() == 10
-          && request.auth.token.email.matches('^' + request.resource.data.nationalId + '@staff\\.[a-z0-9-]+\\.mohobat\\.app$')
+          && (
+            (
+              request.resource.data.nationalId == '1025774389'
+              && request.auth.token.email == '1025774389@mohobat-khames.app'
+            )
+            || request.auth.token.email.matches('^' + request.resource.data.nationalId + '@staff\\.[a-z0-9-]+\\.mohobat\\.app$')
+          )
         )
         || (
           request.auth.uid == uid
           && request.resource.data.role == 'student'
           && request.resource.data.nationalId is string
           && request.resource.data.nationalId.size() == 10
-          && request.auth.token.email.matches('^' + request.resource.data.nationalId + '@students\\.[a-z0-9-]+\\.mohobat\\.app$')
+          && (
+            request.auth.token.email == request.resource.data.nationalId + '@students.mohobat-khames.app'
+            || request.auth.token.email.matches('^' + request.resource.data.nationalId + '@students\\.[a-z0-9-]+\\.mohobat\\.app$')
+          )
           && exists(/databases/$(database)/documents/students/$(request.resource.data.nationalId))
         )
         || isAdmin()

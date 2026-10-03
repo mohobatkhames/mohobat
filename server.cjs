@@ -82,6 +82,7 @@ function sendFile(res, file) {
     ...securityHeaders(),
     'Content-Type': types[ext] || 'application/octet-stream',
     'Cache-Control': cache,
+    'X-Mohobat-App': ext === '.html' ? '1' : '0',
   });
   res.end(data);
 }

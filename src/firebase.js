@@ -3,6 +3,15 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const SETUP_KEY = 'mohobat-firebase-project';
+export const HOME_PROJECT_ID = 'mohopat-khames';
+const LEGACY_DATA_KEY = 'mohobat-khames-db-v1';
+const LEGACY_SESSION_KEY = 'mohobat-khames-session';
+
+const webKeys = {
+  apiKey: 'AIzaSyAwUnhggjPjBO7ueKT-nAIglXCA6UMvmuk',
+  messagingSenderId: '516643270399',
+  appId: '1:516643270399:web:2175dc649a2006a39426ca',
+};
 
 export let db = null;
 export let auth = null;
@@ -26,11 +35,25 @@ function ownerFields(setup) {
   };
 }
 
-export function centerProfile(setup = readProjectSetup()) {
+const WEB_PROFILE = {
+  administrationName: 'الإدارة العامة للتعليم بمنطقة عسير',
+  departmentName: 'إدارة تنمية القدرات-قسم الموهوبين',
+  centerName: 'مركز الموهوبات بخميس مشيط',
+};
+
+export function isInstalledApp() {
+  if (typeof window === 'undefined') return false;
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  return Boolean(standalone);
+}
+
+export function centerProfile(setup) {
+  if (setup === undefined && !isInstalledApp()) return { ...WEB_PROFILE };
+  const source = setup === undefined ? readProjectSetup() : setup;
   return {
-    administrationName: String(setup?.administrationName || 'الإدارة التعليمية').trim() || 'الإدارة التعليمية',
-    departmentName: String(setup?.departmentName || 'قسم الموهوبين').trim() || 'قسم الموهوبين',
-    centerName: String(setup?.centerName || 'مركز الموهوبين').trim() || 'مركز الموهوبين',
+    administrationName: String(source?.administrationName || 'الإدارة التعليمية').trim() || 'الإدارة التعليمية',
+    departmentName: String(source?.departmentName || 'قسم الموهوبين').trim() || 'قسم الموهوبين',
+    centerName: String(source?.centerName || 'مركز الموهوبين').trim() || 'مركز الموهوبين',
   };
 }
 
@@ -90,6 +113,17 @@ function buildConfig(setup) {
   };
 }
 
+function webConfig() {
+  return {
+    apiKey: webKeys.apiKey,
+    authDomain: `${HOME_PROJECT_ID}.firebaseapp.com`,
+    projectId: HOME_PROJECT_ID,
+    storageBucket: `${HOME_PROJECT_ID}.firebasestorage.app`,
+    messagingSenderId: webKeys.messagingSenderId,
+    appId: webKeys.appId,
+  };
+}
+
 function appName(projectId, secondary = false) {
   return `mohobat-${projectId}${secondary ? '-auth' : ''}`;
 }
@@ -105,8 +139,7 @@ function openNamed(config, name) {
   return initializeApp(config, name);
 }
 
-export function applyFirebaseProject(setup) {
-  const config = buildConfig(setup);
+function applyConfig(config) {
   if (!isValidProjectId(config.projectId) || !config.apiKey) {
     throw new Error('معرف مشروع Firebase غير صالح.');
   }
@@ -117,10 +150,18 @@ export function applyFirebaseProject(setup) {
   return config;
 }
 
+export function applyFirebaseProject(setup) {
+  return applyConfig(buildConfig(setup));
+}
+
 export function bootstrapProject() {
-  const saved = readProjectSetup();
-  if (!saved) return 'wizard';
-  applyFirebaseProject(saved);
+  if (isInstalledApp()) {
+    const saved = readProjectSetup();
+    if (!saved) return 'wizard';
+    applyFirebaseProject(saved);
+    return 'ready';
+  }
+  applyConfig(webConfig());
   return 'ready';
 }
 
@@ -148,11 +189,25 @@ export async function resetFirebaseProject() {
   auth = null;
 }
 
+export function readCenterValue(storage, key, legacyKey = '') {
+  const current = storage.getItem(key);
+  if (current) return current;
+  if (activeProjectId() === HOME_PROJECT_ID && legacyKey) return storage.getItem(legacyKey);
+  return null;
+}
+
+export const legacyDataKey = LEGACY_DATA_KEY;
+export const legacySessionKey = LEGACY_SESSION_KEY;
+
 export function databaseGuard() {
   const projectId = activeConfig?.projectId;
   if (!projectId || !auth || !db) return 'لم يُحدَّد معرف قاعدة Firebase بعد.';
-  const saved = readProjectSetup();
-  if (!saved || saved.projectId !== projectId) return 'توقفت المزامنة لأن معرف القاعدة المحفوظ لا يطابق الاتصال الحالي.';
+  if (isInstalledApp()) {
+    const saved = readProjectSetup();
+    if (!saved || saved.projectId !== projectId) return 'توقفت المزامنة لأن معرف القاعدة المحفوظ لا يطابق الاتصال الحالي.';
+  } else if (projectId !== HOME_PROJECT_ID) {
+    return 'توقفت المزامنة لأن موقع الويب ليس على قاعدة المشروع.';
+  }
   if (auth.app?.options?.projectId !== projectId || db.app?.options?.projectId !== projectId) {
     return 'توقفت المزامنة لأن الاتصال ليس بقاعدة هذا المركز.';
   }
@@ -182,6 +237,10 @@ export function getSecondaryAuth() {
 }
 
 export function authEmail(nationalId, kind = 'staff') {
+  if (activeProjectId() === HOME_PROJECT_ID) {
+    const domain = kind === 'student' ? 'students.mohobat-khames.app' : 'mohobat-khames.app';
+    return `${nationalId}@${domain}`;
+  }
   const role = kind === 'student' ? 'students' : 'staff';
   return `${nationalId}@${role}.${activeProjectId()}.mohobat.app`;
 }
