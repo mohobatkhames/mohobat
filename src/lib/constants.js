@@ -1,4 +1,4 @@
-import { isInstalledApp, readProjectSetup } from '../firebase';
+import { isManualSetupMode, readProjectSetup } from '../firebase';
 
 export const DEPARTMENT_NAME = 'إدارة تنمية القدرات-قسم الموهوبين';
 
@@ -9,7 +9,7 @@ const WEB_OWNER = {
 };
 
 export function ownerIdentity() {
-  if (!isInstalledApp()) return WEB_OWNER;
+  if (!isManualSetupMode()) return WEB_OWNER;
   const setup = readProjectSetup() || {};
   return {
     nationalId: String(setup.ownerId || ''),

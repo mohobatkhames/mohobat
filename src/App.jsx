@@ -2,19 +2,13 @@ import { useState } from 'react';
 import { StoreProvider } from './context/Store';
 import LoginAndHome from './components/LoginAndHome';
 import SetupWizard from './components/SetupWizard';
-import { bootstrapProject } from './firebase';
+import { resolveEntry } from './AuthGuard';
 
 export default function App() {
-  const [ready, setReady] = useState(() => {
-    try {
-      return bootstrapProject() === 'ready';
-    } catch {
-      return false;
-    }
-  });
+  const [entry, setEntry] = useState(() => resolveEntry());
 
-  if (!ready) {
-    return <SetupWizard onDone={() => setReady(true)} />;
+  if (entry === 'setup') {
+    return <SetupWizard onDone={() => setEntry('login')} />;
   }
 
   return (

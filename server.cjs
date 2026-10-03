@@ -67,8 +67,28 @@ function sendText(res, status, type, body) {
   });
   res.end(body);
 }
+function firebaseFromEnv() {
+  const projectId = String(process.env.REACT_APP_FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID || '').trim();
+  const apiKey = String(process.env.REACT_APP_FIREBASE_API_KEY || process.env.VITE_FIREBASE_API_KEY || '').trim();
+  const appId = String(process.env.REACT_APP_FIREBASE_APP_ID || process.env.VITE_FIREBASE_APP_ID || '').trim();
+  if (!projectId || !apiKey || !appId) return null;
+  return {
+    projectId,
+    apiKey,
+    appId,
+    authDomain: String(process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || process.env.VITE_FIREBASE_AUTH_DOMAIN || '').trim(),
+    storageBucket: String(process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || process.env.VITE_FIREBASE_STORAGE_BUCKET || '').trim(),
+    messagingSenderId: String(process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '').trim(),
+  };
+}
+
 function publicEnv() {
-  return 'window.__MOHOBAT_ENV__ = {};';
+  const payload = {
+    setupMode: process.env.MOHOBAT_SETUP_MODE === '1' || fs.existsSync(path.join(__dirname, 'setup.mode')),
+  };
+  const firebase = firebaseFromEnv();
+  if (firebase) payload.firebase = firebase;
+  return `window.__MOHOBAT_ENV__ = ${JSON.stringify(payload).replace(/</g, '\\u003c')};`;
 }
 
 function sendFile(res, file) {

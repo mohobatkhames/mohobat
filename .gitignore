@@ -2,6 +2,7 @@ node_modules
 dist
 .env
 .env.local
+setup.mode
 .firebase
 *.log
 .DS_Store

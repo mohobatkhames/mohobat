@@ -41,14 +41,17 @@ const WEB_PROFILE = {
   centerName: 'مركز الموهوبات بخميس مشيط',
 };
 
-export function isInstalledApp() {
+export function isDevelopmentMode() {
+  return Boolean(import.meta.env?.DEV);
+}
+
+export function isManualSetupMode() {
   if (typeof window === 'undefined') return false;
-  const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-  return Boolean(standalone);
+  return window.__MOHOBAT_ENV__?.setupMode === true;
 }
 
 export function centerProfile(setup) {
-  if (setup === undefined && !isInstalledApp()) return { ...WEB_PROFILE };
+  if (setup === undefined && !isManualSetupMode()) return { ...WEB_PROFILE };
   const source = setup === undefined ? readProjectSetup() : setup;
   return {
     administrationName: String(source?.administrationName || 'الإدارة التعليمية').trim() || 'الإدارة التعليمية',
@@ -124,6 +127,37 @@ function webConfig() {
   };
 }
 
+function envFirebaseConfig() {
+  const raw = typeof window !== 'undefined' ? window.__MOHOBAT_ENV__?.firebase : null;
+  if (!raw) return null;
+  const projectId = normalizeProjectId(raw.projectId);
+  const apiKey = String(raw.apiKey || '').trim();
+  const appId = String(raw.appId || '').trim();
+  if (!isValidProjectId(projectId) || !apiKey || !appId) return null;
+  return {
+    apiKey,
+    authDomain: String(raw.authDomain || `${projectId}.firebaseapp.com`).trim(),
+    projectId,
+    storageBucket: String(raw.storageBucket || `${projectId}.firebasestorage.app`).trim(),
+    messagingSenderId: String(raw.messagingSenderId || '').trim(),
+    appId,
+  };
+}
+
+function savedConnection() {
+  const saved = readProjectSetup();
+  if (!saved?.apiKey || !saved?.projectId || !saved?.appId) return null;
+  return buildConfig(saved);
+}
+
+export function resolveFirebaseConnection() {
+  const fromEnv = envFirebaseConfig();
+  if (fromEnv) return fromEnv;
+  if (isManualSetupMode()) return savedConnection();
+  if (isDevelopmentMode() && !webKeys.apiKey) return savedConnection();
+  return webConfig();
+}
+
 function appName(projectId, secondary = false) {
   return `mohobat-${projectId}${secondary ? '-auth' : ''}`;
 }
@@ -155,14 +189,24 @@ export function applyFirebaseProject(setup) {
 }
 
 export function bootstrapProject() {
-  if (isInstalledApp()) {
-    const saved = readProjectSetup();
-    if (!saved) return 'wizard';
-    applyFirebaseProject(saved);
+  try {
+    const config = resolveFirebaseConnection();
+    if (!config) {
+      if (isManualSetupMode() || isDevelopmentMode()) return 'wizard';
+      applyConfig(webConfig());
+      return 'ready';
+    }
+    applyConfig(config);
+    return 'ready';
+  } catch {
+    if (isManualSetupMode() || isDevelopmentMode()) return 'wizard';
+    try {
+      applyConfig(webConfig());
+    } catch {
+      /* Login stays available even if the official project cannot be opened. */
+    }
     return 'ready';
   }
-  applyConfig(webConfig());
-  return 'ready';
 }
 
 export function centerDataKey(projectId = activeProjectId()) {
@@ -202,11 +246,13 @@ export const legacySessionKey = LEGACY_SESSION_KEY;
 export function databaseGuard() {
   const projectId = activeConfig?.projectId;
   if (!projectId || !auth || !db) return 'لم يُحدَّد معرف قاعدة Firebase بعد.';
-  if (isInstalledApp()) {
-    const saved = readProjectSetup();
-    if (!saved || saved.projectId !== projectId) return 'توقفت المزامنة لأن معرف القاعدة المحفوظ لا يطابق الاتصال الحالي.';
-  } else if (projectId !== HOME_PROJECT_ID) {
-    return 'توقفت المزامنة لأن موقع الويب ليس على قاعدة المشروع.';
+  const fromEnv = envFirebaseConfig()?.projectId;
+  const saved = isManualSetupMode() ? readProjectSetup() : null;
+  const expected = fromEnv || saved?.projectId || HOME_PROJECT_ID;
+  if (projectId !== expected) {
+    return saved
+      ? 'توقفت المزامنة لأن معرف القاعدة المحفوظ لا يطابق الاتصال الحالي.'
+      : 'توقفت المزامنة لأن موقع الويب ليس على قاعدة المشروع.';
   }
   if (auth.app?.options?.projectId !== projectId || db.app?.options?.projectId !== projectId) {
     return 'توقفت المزامنة لأن الاتصال ليس بقاعدة هذا المركز.';

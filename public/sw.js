@@ -1,4 +1,4 @@
-const CACHE = 'mohobat-shell-v3';
+const CACHE = 'mohobat-shell-v4';
 const SHELL = ['/', '/index.html', '/icons/icon-192.png', '/icons/icon-512.png', '/manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
