@@ -35,7 +35,7 @@ export async function signInCloud(nationalId, password, kind) {
   } catch (error) {
     const missing = ['auth/user-not-found', 'auth/invalid-credential', 'auth/invalid-login-credentials'];
     if (!missing.includes(error.code)) {
-      return { ok: false, message: 'تعذر الاتصال بمصادقة Firebase.' };
+      return { ok: false, message: `تعذر الاتصال بمصادقة Firebase. (${error.code || 'unknown'})` };
     }
     try {
       const secondary = getSecondaryAuth();
@@ -172,6 +172,13 @@ export function watchAuth(callback) {
   ensureFirebase();
   if (!auth) return () => {};
   return onAuthStateChanged(auth, callback);
+}
+
+export async function currentCloudUser() {
+  ensureFirebase();
+  if (!auth) return null;
+  if (typeof auth.authStateReady === 'function') await auth.authStateReady();
+  return auth.currentUser || null;
 }
 
 export async function cloudSignOut() {

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { DEPARTMENT_NAME } from '../lib/constants';
 import { formatBoth, formatTime, todayISO } from '../lib/dates';
 import { useStore } from '../context/Store';
 import { Banner, Empty, Field, GradeSelect } from './ui';
@@ -138,6 +139,7 @@ export default function Dashboard() {
           <h3 className="mb-3 text-lg font-extrabold">بيانات تظهر في التقارير</h3>
           <ul className="space-y-2 text-sm leading-7">
             <li>{data.settings.administrationName}</li>
+            <li>{DEPARTMENT_NAME}</li>
             <li>{data.settings.centerName}</li>
             <li>{data.settings.semester} — {data.settings.academicYear}</li>
           </ul>

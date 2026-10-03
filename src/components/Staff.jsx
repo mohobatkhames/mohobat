@@ -41,7 +41,7 @@ export default function Staff() {
           </Field>
           <Field label="الجوال"><input className="field" dir="ltr" value={form.phone} onChange={set('phone')} /></Field>
           <Field label="البريد"><input className="field" dir="ltr" type="email" value={form.email} onChange={set('email')} /></Field>
-          <Field label="تاريخ الالتحاق">
+          <Field label="تاريخ الالتحاق بالمركز">
             <input className="field" type="date" value={form.joinDate} onChange={set('joinDate')} />
             {form.joinDate ? <span className="mt-1 block text-xs leading-6 text-mute">{formatBoth(form.joinDate)}</span> : null}
           </Field>
@@ -53,7 +53,7 @@ export default function Staff() {
           <div className="table-wrap">
             <table className="data">
               <thead>
-                <tr><th>الاسم</th><th>السجل</th><th>العمل</th><th>الجوال</th><th>البريد</th><th>الالتحاق</th><th>إجراءات</th></tr>
+                <tr><th>الاسم</th><th>السجل</th><th>العمل</th><th>الجوال</th><th>البريد</th><th>تاريخ الالتحاق بالمركز</th><th>إجراءات</th></tr>
               </thead>
               <tbody>
                 {staff.map((user) => (

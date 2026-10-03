@@ -1,4 +1,5 @@
 const env = import.meta.env ?? {};
+export const DEPARTMENT_NAME = 'إدارة تنمية القدرات-قسم الموهوبين';
 export const OWNER_ID = env.REACT_APP_OWNER_ID || '1025774389';
 export const OWNER_PASSWORD = env.REACT_APP_OWNER_PASSWORD || 'Aa9834775201';
 
@@ -20,7 +21,7 @@ export const JOBS = [
   { label: 'مدربة', role: 'trainer' },
   { label: 'معلمة', role: 'teacher' },
   { label: 'موظفة', role: 'employee' },
-  { label: 'مسؤول نظام', role: 'admin' },
+  { label: 'مسؤولة نظام', role: 'admin' },
 ];
 
 export const THEMES = [
@@ -35,7 +36,7 @@ export function activeTheme(theme) {
 
 export const ROLE_LABELS = {
   owner: 'المالك',
-  admin: 'مسؤول نظام',
+  admin: 'مسؤولة نظام',
   director: 'مديرة',
   trainer: 'مدرب / مدربة',
   teacher: 'معلمة',
@@ -48,7 +49,12 @@ export function isManager(role) {
 }
 
 export function jobRole(job) {
+  if (job === 'مسؤولة نظام' || job === 'مسؤول نظام') return 'admin';
   return JOBS.find((item) => item.label === job)?.role || 'employee';
+}
+
+export function feminineJob(job) {
+  return job === 'مسؤول نظام' ? 'مسؤولة نظام' : job;
 }
 
 export function isTrainer(user) {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { GRADES } from '../lib/constants';
+import { DEPARTMENT_NAME, GRADES } from '../lib/constants';
 import { formatBoth, formatHijri, todayISO } from '../lib/dates';
 import { navigate, pageFromPath } from '../lib/routes';
 import { useStore } from '../context/Store';
@@ -203,7 +203,9 @@ export default function CoursesAndMessages({ initialTab = 'courses' }) {
       <section className="card flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-2xl font-extrabold">إدارة البرامج والدورات والرسائل</h2>
-          <p className="mt-1 text-sm leading-7 text-mute">{data.settings.administrationName} | {data.settings.centerName}</p>
+          <p className="mt-1 text-sm leading-7 text-mute">{data.settings.administrationName}</p>
+          <p className="text-sm leading-7 text-mute">{DEPARTMENT_NAME}</p>
+          <p className="text-sm leading-7 text-mute">{data.settings.centerName}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {[

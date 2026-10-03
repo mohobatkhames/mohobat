@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { isTrainer } from '../lib/constants';
+import { DEPARTMENT_NAME, isTrainer } from '../lib/constants';
 import { isAttending } from '../lib/course';
 import { trimSignatureUrl } from '../lib/signature';
 
@@ -37,6 +37,7 @@ export default function Certificate({ settings, student, courses = [], users = [
       <div className="flex items-center justify-between gap-3 text-xs font-bold leading-6">
         <div className="min-w-0 flex-1 text-right">
           <p>{settings.administrationName}</p>
+          <p>{DEPARTMENT_NAME}</p>
           <p>{settings.centerName}</p>
         </div>
         <img src="/ministry-of-education.png" alt="وزارة التعليم" className="h-16 w-auto shrink-0 object-contain sm:h-20" />

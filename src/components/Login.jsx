@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { DEPARTMENT_NAME } from '../lib/constants';
 import { useStore } from '../context/Store';
 import { fingerprintSupported, savedFingerprint } from '../lib/webauthn';
 import InstallApp from './InstallApp';
@@ -65,7 +66,12 @@ export default function Login() {
         <div className="mb-5 text-center">
           <h1 className="text-xl font-extrabold leading-snug sm:text-2xl">نظام موهوبات الإلكتروني</h1>
           <p className="mt-1 text-sm leading-6 text-mute">{data.settings.administrationName}</p>
+          <p className="text-sm leading-6 text-mute">{DEPARTMENT_NAME}</p>
           <p className="text-sm leading-6 text-mute">{data.settings.centerName}</p>
+        </div>
+
+        <div className="mb-4 flex justify-center">
+          <ThemeSwitch crescent />
         </div>
 
         <div className="login-tabs">
@@ -118,7 +124,6 @@ export default function Login() {
           <button className="btn-ghost mt-3 w-full" type="button" onClick={() => setRecover(false)}>العودة لتسجيل الدخول</button>
         )}
 
-        <ThemeSwitch />
         <InstallApp />
         <p className="mt-4 border-t border-[var(--line)] pt-4 text-center text-xs leading-6 text-mute">
           صمم لمركز الموهوبات بخميس مشيط © جميع الحقوق محفوظة

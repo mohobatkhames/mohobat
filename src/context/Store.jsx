@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { GRADES, OWNER_ID, OWNER_PASSWORD, activeTheme, isManager, jobRole } from '../lib/constants';
-import { canSync, cloudSignOut, ensureProfile, provisionAccount, pushSnapshot, removeCloud, signInCloud, subscribe, watchAuth, writeCloud } from '../lib/cloud';
+import { GRADES, OWNER_ID, OWNER_PASSWORD, activeTheme, feminineJob, isManager, jobRole } from '../lib/constants';
+import { canSync, cloudSignOut, currentCloudUser, ensureProfile, provisionAccount, pushSnapshot, removeCloud, signInCloud, subscribe, watchAuth, writeCloud } from '../lib/cloud';
 import { isFirebaseConfigured } from '../firebase';
 import { nowIso, todayISO, weekdayName, formatHijri } from '../lib/dates';
 import { normalizeId, tempPassword, uid } from '../lib/ids';
@@ -90,7 +90,7 @@ function loadState() {
         ...(parsed.settings || {}),
         gateway: normalizeGateway({ ...base.settings.gateway, ...(parsed.settings?.gateway || {}) }),
       },
-      users: parsed.users || base.users,
+      users: (parsed.users || base.users).map((user) => ({ ...user, job: feminineJob(user.job) })),
       students: parsed.students || [],
       attendance: parsed.attendance || {},
       courses: parsed.courses || [],
@@ -169,6 +169,7 @@ function mergeUsers(current, incoming, defaultPassword) {
     if (!prev) {
       map.set(item.nationalId, {
         ...item,
+        job: feminineJob(item.job),
         password: item.role === 'owner' ? OWNER_PASSWORD : defaultPassword,
         usesDefaultPassword: item.role !== 'owner',
       });
@@ -176,6 +177,7 @@ function mergeUsers(current, incoming, defaultPassword) {
       map.set(item.nationalId, {
         ...prev,
         ...item,
+        job: feminineJob(item.job || prev.job),
         password: prev.password,
         usesDefaultPassword: prev.usesDefaultPassword,
       });
@@ -256,12 +258,12 @@ export function StoreProvider({ children }) {
 
   useEffect(() => {
     if (!session || !isFirebaseConfigured()) return undefined;
-    setCloud((current) => (current.mode === 'error' || current.mode === 'synced' ? current : { mode: 'signing', message: 'جاري تسجيل الدخول' }));
+    let cancelled = false;
     let stopListen = () => {};
+    setCloud((current) => (current.mode === 'synced' ? current : { mode: 'signing', message: 'جاري تسجيل الدخول' }));
     const stopAuth = watchAuth((user) => {
+      if (cancelled || !user) return;
       stopListen();
-      stopListen = () => {};
-      if (!user) return;
       stopListen = subscribe(session, (partial) => {
         setData((current) => {
           const allowDelete = allowDeleteRef.current && session.role !== 'student';
@@ -301,7 +303,38 @@ export function StoreProvider({ children }) {
       }, () => setCloud({ mode: 'error', message: 'تعذر الاشتراك اللحظي مع Firestore.' }));
       setCloud({ mode: 'synced', message: 'المزامنة اللحظية مع Firestore تعمل.' });
     });
+    const resume = async () => {
+      const existing = await currentCloudUser();
+      if (cancelled || existing) return;
+      const person = session.role === 'student'
+        ? registeredStudent(dataRef.current, session.nationalId)
+        : registeredStaff(dataRef.current, session.nationalId);
+      if (!person) {
+        setCloud({ mode: 'error', message: UNREGISTERED });
+        return;
+      }
+      const password = session.role === 'student'
+        ? person.nationalId
+        : (person.usesDefaultPassword ? dataRef.current.settings.defaultPassword : person.password);
+      const result = await signInCloud(person.nationalId, password, session.role === 'student' ? 'student' : 'staff');
+      if (cancelled) return;
+      if (!result.ok) {
+        setCloud({ mode: 'error', message: result.message || 'تعذر إكمال تسجيل الدخول السحابي.' });
+        return;
+      }
+      try {
+        await ensureProfile({ ...person, role: session.role, job: session.job });
+        if (session.role !== 'student') {
+          await pushSnapshot(dataRef.current);
+          allowDeleteRef.current = true;
+        }
+      } catch {
+        if (!cancelled) setCloud({ mode: 'error', message: 'تم الدخول، وتعذرت مزامنة بعض البيانات مع Firestore.' });
+      }
+    };
+    resume();
     return () => {
+      cancelled = true;
       stopAuth();
       stopListen();
     };
@@ -598,7 +631,7 @@ export function StoreProvider({ children }) {
         const record = {
           nationalId,
           name: staff.name.trim(),
-          job: staff.job,
+          job: feminineJob(staff.job),
           role: jobRole(staff.job),
           phone: staff.phone || '',
           email: (staff.email || '').trim(),

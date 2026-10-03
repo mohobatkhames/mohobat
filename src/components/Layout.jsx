@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ROLE_LABELS } from '../lib/constants';
+import { DEPARTMENT_NAME, ROLE_LABELS } from '../lib/constants';
 import { formatBothDateTime } from '../lib/dates';
 import { navigate, pageFromPath, pathFromPage } from '../lib/routes';
 import { useStore } from '../context/Store';
@@ -101,6 +101,7 @@ export default function Layout() {
             <button className="btn-ghost shrink-0 lg:hidden" type="button" onClick={() => setOpen((value) => !value)}>القائمة</button>
             <div className="min-w-0 flex-1">
               <p className="text-sm leading-6 text-mute">{store.data.settings.administrationName}</p>
+              <p className="text-sm leading-6 text-mute">{DEPARTMENT_NAME}</p>
               <p className="break-words font-extrabold leading-7">{store.session.name} · {store.session.role === 'trainer' ? (store.session.job || ROLE_LABELS.trainer) : ROLE_LABELS[store.session.role]}</p>
             </div>
           </div>
