@@ -1,17 +1,19 @@
 import { useMemo, useState } from 'react';
 import { DEFAULT_WHATSAPP_NUMBER, openWhatsAppChats, whatsappLabel, whatsappLink, whatsappRecipients } from '../lib/whatsapp';
 import { useStore } from '../context/Store';
-import { Banner } from './ui';
+import { Banner, GradeSelect } from './ui';
 
 const AUDIENCES = [
   ['all', 'الجميع', 'الطالبات ومنسوبات المركز'],
   ['students', 'الطالبات', 'أرقام الطالبات أو أولياء الأمور'],
+  ['grade', 'طالبات صف محدد', 'طالبات الصف المختار فقط'],
   ['staff', 'منسوبات المركز', 'المديرة والمعلمات والموظفات'],
 ];
 
 export default function WhatsAppSend({ students = [], title = 'إرسال واتساب', preset = '' }) {
   const { data, sendMessage } = useStore();
   const [audience, setAudience] = useState('all');
+  const [grade, setGrade] = useState('الرابع الابتدائي');
   const [text, setText] = useState(preset);
   const [note, setNote] = useState('');
   const [tone, setTone] = useState('ok');
@@ -19,8 +21,8 @@ export default function WhatsAppSend({ students = [], title = 'إرسال وات
   const sender = data.settings.whatsappNumber || DEFAULT_WHATSAPP_NUMBER;
   const label = whatsappLabel(sender);
   const recipients = useMemo(
-    () => whatsappRecipients(audience, students, data.users),
-    [audience, students, data.users],
+    () => whatsappRecipients(audience, students, data.users, grade),
+    [audience, grade, students, data.users],
   );
 
   const send = (event) => {
@@ -32,9 +34,15 @@ export default function WhatsAppSend({ students = [], title = 'إرسال وات
       setPrepared([]);
       return;
     }
+    if (audience === 'grade' && !grade) {
+      setTone('bad');
+      setNote('اختر الصف أولاً.');
+      setPrepared([]);
+      return;
+    }
     if (recipients.length === 0) {
       setTone('bad');
-      setNote('لا توجد أرقام واتساب مسجلة لهذه الفئة.');
+      setNote(audience === 'grade' ? 'لا توجد أرقام واتساب لطالبات هذا الصف.' : 'لا توجد أرقام واتساب مسجلة لهذه الفئة.');
       setPrepared([]);
       return;
     }
@@ -74,7 +82,7 @@ export default function WhatsAppSend({ students = [], title = 'إرسال وات
       {note && <Banner tone={tone}>{note}</Banner>}
       <div>
         <span className="label">الفئة المستهدفة</span>
-        <div className="mt-2 grid gap-2 sm:grid-cols-3">
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">
           {AUDIENCES.map(([id, name, detail]) => (
             <button
               key={id}
@@ -89,7 +97,16 @@ export default function WhatsAppSend({ students = [], title = 'إرسال وات
           ))}
         </div>
       </div>
-      <p className="text-sm leading-7 text-mute">العدد الجاهز للإرسال: {recipients.length}</p>
+      {audience === 'grade' && (
+        <label className="block">
+          <span className="label">الصف</span>
+          <GradeSelect value={grade} onChange={(value) => { setGrade(value); setPrepared([]); }} />
+        </label>
+      )}
+      <p className="text-sm leading-7 text-mute">
+        العدد الجاهز للإرسال: {recipients.length}
+        {audience === 'grade' && grade ? ` · ${grade}` : ''}
+      </p>
       <ul className="max-h-48 space-y-2 overflow-auto">
         {recipients.length === 0 && <li className="text-sm text-mute">لا توجد أرقام في هذه الفئة.</li>}
         {recipients.map((person) => (

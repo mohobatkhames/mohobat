@@ -19,7 +19,7 @@ export function whatsappLabel(value) {
   return { local, international };
 }
 
-export function whatsappRecipients(audience, students = [], users = []) {
+export function whatsappRecipients(audience, students = [], users = [], grade = '') {
   const list = [];
   const seen = new Set();
   const add = (id, name, phone) => {
@@ -29,8 +29,12 @@ export function whatsappRecipients(audience, students = [], users = []) {
     list.push({ id, name, phone: normalized });
   };
 
-  if (audience === 'all' || audience === 'students') {
-    students.forEach((student) => {
+  const studentList = audience === 'grade'
+    ? students.filter((student) => student.grade === grade)
+    : students;
+
+  if (audience === 'all' || audience === 'students' || audience === 'grade') {
+    studentList.forEach((student) => {
       add(student.nationalId, student.name, student.phone || student.guardianPhone);
     });
   }

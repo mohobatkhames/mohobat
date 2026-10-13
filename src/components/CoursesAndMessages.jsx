@@ -26,6 +26,7 @@ const blankMessage = {
 };
 
 const blankSms = {
+  audience: 'grade',
   targetGrade: 'الرابع الابتدائي',
   messageText: '',
 };
@@ -178,13 +179,20 @@ export default function CoursesAndMessages({ initialTab = 'courses' }) {
       setErrorMsg('يرجى كتابة نص رسالة SMS.');
       return;
     }
-    const targets = students.filter((student) => student.grade === smsForm.targetGrade);
-    const phones = targets.map((student) => student.guardianPhone || student.phone).filter(Boolean);
-    if (phones.length === 0) {
-      setErrorMsg('لا توجد أرقام لأولياء أمور هذا الصف.');
+    if (smsForm.audience === 'grade' && !smsForm.targetGrade) {
+      setErrorMsg('اختر الصف أولاً.');
       return;
     }
-    const confirmed = window.confirm(`تأكيد إرسال SMS إلى أولياء أمور صف ${smsForm.targetGrade}؟`);
+    const targets = smsForm.audience === 'grade'
+      ? students.filter((student) => student.grade === smsForm.targetGrade)
+      : students;
+    const phones = targets.map((student) => student.guardianPhone || student.phone).filter(Boolean);
+    const scope = smsForm.audience === 'grade' ? `طالبات صف ${smsForm.targetGrade}` : 'جميع الطالبات';
+    if (phones.length === 0) {
+      setErrorMsg(smsForm.audience === 'grade' ? 'لا توجد أرقام لأولياء أمور هذا الصف.' : 'لا توجد أرقام مسجلة للطالبات.');
+      return;
+    }
+    const confirmed = window.confirm(`تأكيد إرسال SMS إلى أولياء أمور ${scope}؟`);
     if (!confirmed) return;
     sendMessage({
       channel: 'sms',
@@ -194,7 +202,7 @@ export default function CoursesAndMessages({ initialTab = 'courses' }) {
       recipientLabels: phones,
     });
     window.open(`sms:${phones.join(',')}?&body=${encodeURIComponent(smsForm.messageText.trim())}`, '_blank');
-    setSuccessMsg(`تم حفظ رسالة SMS لأولياء أمور صف ${smsForm.targetGrade}.`);
+    setSuccessMsg(`تم حفظ رسالة SMS لأولياء أمور ${scope}.`);
     setSmsForm(blankSms);
   };
 
@@ -377,11 +385,20 @@ export default function CoursesAndMessages({ initialTab = 'courses' }) {
           <p className="mb-4 text-sm text-mute">تُحفظ الرسالة في النظام وتُفتح شاشة الإرسال إلى أرقام أولياء الأمور.</p>
           <form onSubmit={handleSendSms} className="space-y-3">
             <label className="block">
-              <span className="label">الصف</span>
-              <select className="field" value={smsForm.targetGrade} onChange={(event) => setSmsForm({ ...smsForm, targetGrade: event.target.value })}>
-                <GradeOptions />
+              <span className="label">المستهدفات</span>
+              <select className="field" value={smsForm.audience} onChange={(event) => setSmsForm({ ...smsForm, audience: event.target.value })}>
+                <option value="all">جميع الطالبات</option>
+                <option value="grade">طالبات صف محدد</option>
               </select>
             </label>
+            {smsForm.audience === 'grade' && (
+              <label className="block">
+                <span className="label">الصف</span>
+                <select className="field" value={smsForm.targetGrade} onChange={(event) => setSmsForm({ ...smsForm, targetGrade: event.target.value })}>
+                  <GradeOptions />
+                </select>
+              </label>
+            )}
             <label className="block">
               <span className="label">نص الرسالة</span>
               <textarea className="field min-h-28" required value={smsForm.messageText} onChange={(event) => setSmsForm({ ...smsForm, messageText: event.target.value })} placeholder="عزيزي ولي الأمر، نود إفادتكم بمشاركة ابنتكم في..." />
