@@ -6,13 +6,14 @@ import { Banner, Empty, Field, GradeSelect } from './ui';
 const blank = { name: '', nationalId: '', grade: '', school: '', phone: '', email: '', guardian: '', guardianPhone: '', score: '' };
 
 export default function Students() {
-  const { data, saveStudent, deleteStudent, canManage } = useStore();
+  const { data, saveStudent, deleteStudent, deleteStudents, canManage } = useStore();
   const [tab, setTab] = useState('list');
   const [query, setQuery] = useState('');
   const [grade, setGrade] = useState('الكل');
   const [form, setForm] = useState(blank);
   const [message, setMessage] = useState('');
   const [editing, setEditing] = useState('');
+  const [picked, setPicked] = useState({});
 
   const rows = useMemo(() => data.students.filter((student) => {
     const text = `${student.name} ${student.nationalId} ${student.school || ''}`.includes(query.trim());
@@ -31,6 +32,22 @@ export default function Students() {
   };
 
   const set = (key) => (event) => setForm({ ...form, [key]: event.target.value });
+  const selectedIds = rows.filter((student) => picked[student.nationalId]).map((student) => student.nationalId);
+  const allVisible = rows.length > 0 && rows.every((student) => picked[student.nationalId]);
+
+  const removeMany = (ids, label) => {
+    if (!ids.length) {
+      setMessage('لا توجد سجلات محددة للحذف.');
+      return;
+    }
+    const confirmed = window.confirm(`سيتم حذف ${label} ولن تتمكن من استعادتها. العدد: ${ids.length}. هل توافق؟`);
+    if (!confirmed) return;
+    const reason = window.prompt('سبب الحذف');
+    if (!reason?.trim()) return;
+    const result = deleteStudents(ids, reason.trim());
+    setMessage(result.message);
+    if (result.ok) setPicked({});
+  };
 
   return (
     <div className="space-y-4">
@@ -63,21 +80,43 @@ export default function Students() {
 
       {tab === 'list' && (
         <section className="card p-5">
+          {message && <div className="mb-3"><Banner tone={message.includes('لا ') || message.includes('تعذر') || message.includes('مطلوب') ? 'bad' : 'ok'}>{message}</Banner></div>}
           <div className="mb-4 grid gap-3 md:grid-cols-[1fr_240px]">
             <input className="field" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="بحث بالاسم أو السجل أو المدرسة" />
             <GradeSelect includeAll value={grade} onChange={setGrade} />
           </div>
+          {canManage && (
+            <div className="no-print mb-4 flex flex-wrap gap-2">
+              <button className="btn-danger" type="button" onClick={() => removeMany(data.students.map((student) => student.nationalId), 'جميع الطالبات')}>حذف الكل</button>
+              <button className="btn-danger" type="button" disabled={grade === 'الكل'} onClick={() => removeMany(data.students.filter((student) => student.grade === grade).map((student) => student.nationalId), `طالبات صف ${grade}`)}>حذف صف محدد</button>
+              <button className="btn-danger" type="button" disabled={selectedIds.length === 0} onClick={() => removeMany(selectedIds, 'السجلات المحددة')}>حذف المحدد ({selectedIds.length})</button>
+            </div>
+          )}
           {rows.length === 0 ? <Empty text="لا توجد طالبات مطابقات." /> : (
             <div className="table-wrap">
               <table className="data">
                 <thead>
                   <tr>
+                    {canManage && (
+                      <th className="no-print">
+                        <input type="checkbox" checked={allVisible} onChange={() => {
+                          const next = { ...picked };
+                          rows.forEach((student) => { next[student.nationalId] = !allVisible; });
+                          setPicked(next);
+                        }} aria-label="تحديد الظاهر" />
+                      </th>
+                    )}
                     <th>الاسم</th><th>السجل</th><th>الصف</th><th>المدرسة</th><th>الدرجة</th><th className="no-print">إجراءات</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((student) => (
                     <tr key={student.nationalId}>
+                      {canManage && (
+                        <td className="no-print">
+                          <input type="checkbox" checked={Boolean(picked[student.nationalId])} onChange={() => setPicked({ ...picked, [student.nationalId]: !picked[student.nationalId] })} aria-label={`تحديد ${student.name}`} />
+                        </td>
+                      )}
                       <td>{student.name}</td>
                       <td dir="ltr">{student.nationalId}</td>
                       <td>{student.grade || '—'}</td>

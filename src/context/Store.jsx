@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { GRADES, activeTheme, feminineJob, isManager, jobRole, ownerIdentity } from '../lib/constants';
-import { cloudSignOut, currentCloudUser, ensureProfile, provisionAccount, pushSnapshot, readOwnProfile, removeCloud, signInCloud, signInExisting, subscribe, syncBlockMessage, watchAuth, writeCloud } from '../lib/cloud';
+import { cloudSignOut, currentCloudUser, ensureProfile, provisionAccount, pushSnapshot, readOwnProfile, removeCloud, replaceStudentRoster, signInCloud, signInExisting, subscribe, syncBlockMessage, watchAuth, writeCloud } from '../lib/cloud';
 import { activeProjectId, centerAttemptsKey, centerDataKey, centerProfile, centerSessionKey, databaseGuard, legacyDataKey, legacySessionKey, readCenterValue } from '../firebase';
 import { nowIso, todayISO, weekdayName, formatHijri } from '../lib/dates';
 import { normalizeId, tempPassword, uid } from '../lib/ids';
@@ -231,6 +231,7 @@ export function StoreProvider({ children }) {
   });
   const dataRef = useRef(data);
   const allowDeleteRef = useRef(false);
+  const rosterLockRef = useRef(null);
   dataRef.current = data;
 
   const commit = (next) => {
@@ -307,7 +308,17 @@ export function StoreProvider({ children }) {
               updatedAt: partial.security.updatedAt || next.settings.updatedAt,
             };
           }
-          if (partial.students) next.students = mergeList(current.students, partial.students, 'nationalId', allowDelete);
+          if (partial.students) {
+            const locked = rosterLockRef.current;
+            if (locked) {
+              const remote = partial.students.filter((student) => locked.has(String(student.nationalId)));
+              const local = current.students.filter((student) => locked.has(String(student.nationalId)) || student.pendingSync);
+              next.students = mergeList(local, remote, 'nationalId', true);
+              if (!partial.students.some((student) => !locked.has(String(student.nationalId)))) rosterLockRef.current = null;
+            } else {
+              next.students = mergeList(current.students, partial.students, 'nationalId', allowDelete);
+            }
+          }
           if (partial.courses) next.courses = mergeList(current.courses, partial.courses, 'id', allowDelete);
           if (partial.messages) next.messages = mergeList(current.messages, partial.messages, 'id', allowDelete && session.role !== 'student');
           if (partial.certificates) next.certificates = mergeList(current.certificates, partial.certificates, 'id', allowDelete && session.role !== 'student');
@@ -669,12 +680,35 @@ export function StoreProvider({ children }) {
         ]));
         return { ok: true };
       },
-      importStudents: (rows) => {
+      importStudents: async (rows, mode = 'add') => {
         const current = dataRef.current;
+        const incoming = rows.map((row) => ({
+          ...row,
+          nationalId: normalizeId(row.nationalId),
+          id: normalizeId(row.nationalId),
+          name: String(row.name || '').trim(),
+          updatedAt: nowIso(),
+          pendingSync: true,
+        })).filter((row) => row.name && row.nationalId.length === 10);
+        if (!incoming.length) return { ok: false, message: 'لا توجد سجلات صالحة للاستيراد.' };
+        if (mode === 'replace') {
+          const block = syncBlockMessage();
+          if (block) return { ok: false, message: block };
+          const allowed = new Set(incoming.map((student) => student.nationalId));
+          rosterLockRef.current = allowed;
+          try {
+            await replaceStudentRoster(incoming);
+            commit({ ...dataRef.current, students: incoming });
+            return { ok: true, count: incoming.length, message: `تم حذف البيانات السابقة واعتماد ${incoming.length} طالبة.` };
+          } catch (error) {
+            rosterLockRef.current = null;
+            return { ok: false, message: error.message || 'تعذر استبدال بيانات الطالبات.' };
+          }
+        }
         const map = new Map(current.students.map((student) => [student.nationalId, student]));
         const imported = [];
-        for (const row of rows) {
-          const record = { ...map.get(row.nationalId), ...row, id: row.nationalId, updatedAt: nowIso(), pendingSync: true };
+        for (const row of incoming) {
+          const record = { ...map.get(row.nationalId), ...row, pendingSync: true };
           map.set(row.nationalId, record);
           imported.push(record);
         }
@@ -684,7 +718,36 @@ export function StoreProvider({ children }) {
             await Promise.all(imported.slice(index, index + 40).map((student) => writeCloud('students', student.nationalId, student)));
           }
         });
-        return imported.length;
+        return { ok: true, count: imported.length, message: `تمت إضافة ${imported.length} طالبة، واعتُمدت البيانات الجديدة عند تكرار السجل.` };
+      },
+      deleteStudents: (ids, reason) => {
+        const cause = String(reason || '').trim();
+        if (!cause) return { ok: false, message: 'سبب الحذف مطلوب.' };
+        const chosen = new Set(ids.map((id) => normalizeId(id)));
+        const current = dataRef.current;
+        const removed = current.students.filter((student) => chosen.has(student.nationalId));
+        if (!removed.length) return { ok: false, message: 'لا توجد سجلات مطابقة للحذف.' };
+        const entries = removed.map((student) => ({
+          id: uid('arch'),
+          kind: 'طالبة',
+          title: student.name,
+          detail: `${student.nationalId} · ${student.grade || 'بدون صف'}`,
+          reason: cause,
+          deletedAt: nowIso(),
+          deletedBy: session?.name || 'النظام',
+        }));
+        const allowed = new Set(current.students.filter((student) => !chosen.has(student.nationalId)).map((student) => student.nationalId));
+        rosterLockRef.current = allowed;
+        commit({
+          ...current,
+          students: current.students.filter((student) => !chosen.has(student.nationalId)),
+          archive: [...entries, ...(current.archive || [])],
+        });
+        cloudTask(() => Promise.all(removed.flatMap((student, index) => [
+          removeCloud('students', student.nationalId),
+          writeCloud('archive', entries[index].id, entries[index]),
+        ])));
+        return { ok: true, count: removed.length, message: `تم حذف ${removed.length} طالبة ولن تعود إلى القائمة.` };
       },
       saveStaff: (staff) => {
         const current = dataRef.current;

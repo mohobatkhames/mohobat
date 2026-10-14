@@ -1,5 +1,5 @@
 import { createUserWithEmailAndPassword, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { collection, deleteDoc, doc, getDoc, onSnapshot, query, setDoc, where } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, query, setDoc, where } from 'firebase/firestore';
 import { auth, authEmail, databaseGuard, db, ensureFirebase, getSecondaryAuth } from '../firebase';
 import { cloudSettings } from './gateway';
 
@@ -155,6 +155,17 @@ export async function removeCloud(collectionName, id) {
   assertProject();
   if (!auth?.currentUser) return;
   await deleteDoc(doc(db, collectionName, String(id)));
+}
+
+export async function replaceStudentRoster(students) {
+  assertProject();
+  if (!auth?.currentUser) throw new Error('تعذر استبدال السجل لأن المزامنة غير متصلة.');
+  const nextIds = new Set(students.map((student) => String(student.nationalId)));
+  const existing = await getDocs(collection(db, 'students'));
+  const stale = existing.docs.map((item) => item.id).filter((id) => !nextIds.has(id));
+  await writeChunks(stale, 40, (id) => deleteDoc(doc(db, 'students', id)));
+  await writeChunks(students, 40, (student) => writeCloud('students', student.nationalId, { ...student, id: student.nationalId }));
+  return { removed: stale.length, saved: students.length };
 }
 
 export async function pushSnapshot(state) {

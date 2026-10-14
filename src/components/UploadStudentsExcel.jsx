@@ -51,9 +51,40 @@ export default function UploadStudentsExcel() {
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h3 className="font-extrabold">معاينة الطالبات ({rows.length})</h3>
-            <button className="btn-primary" type="button" onClick={() => { importStudents(rows); setRows([]); setSummary('حُفظت الطالبات في النظام.'); }}>
-              حفظ في قاعدة البيانات
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                className="btn-danger"
+                type="button"
+                onClick={async () => {
+                  const confirmed = window.confirm('سيتم حذف جميع البيانات السابقة ولن تتمكن من استعادتها. هل توافق على المسح والاستيراد؟');
+                  if (!confirmed) return;
+                  const result = await importStudents(rows, 'replace');
+                  if (!result.ok) {
+                    setError(result.message);
+                    return;
+                  }
+                  setRows([]);
+                  setSummary(result.message);
+                }}
+              >
+                استيراد كامل
+              </button>
+              <button
+                className="btn-primary"
+                type="button"
+                onClick={async () => {
+                  const result = await importStudents(rows, 'add');
+                  if (!result.ok) {
+                    setError(result.message);
+                    return;
+                  }
+                  setRows([]);
+                  setSummary(result.message);
+                }}
+              >
+                استيراد بيانات إضافية
+              </button>
+            </div>
           </div>
           <div className="table-wrap">
             <table className="data">
