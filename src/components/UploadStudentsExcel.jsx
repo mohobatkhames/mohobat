@@ -8,6 +8,7 @@ export default function UploadStudentsExcel() {
   const [rows, setRows] = useState([]);
   const [summary, setSummary] = useState('');
   const [error, setError] = useState('');
+  const [mode, setMode] = useState('replace');
 
   if (!canManage) return <Banner tone="warn">استيراد الملف متاح للمالك ومديرة المركز ومسؤولات النظام.</Banner>;
 
@@ -36,12 +37,32 @@ export default function UploadStudentsExcel() {
     }
   };
 
+  const runImport = async (selected) => {
+    if (selected === 'replace') {
+      const confirmed = window.confirm('سيتم حذف جميع البيانات السابقة ولن تتمكن من استعادتها. هل توافق على المسح والاستيراد؟');
+      if (!confirmed) return;
+    }
+    const result = await importStudents(rows, selected);
+    if (!result.ok) {
+      setError(result.message);
+      return;
+    }
+    setRows([]);
+    setSummary(result.message);
+  };
+
   return (
     <div className="space-y-4">
+      <div className="import-choices">
+        <button className={mode === 'replace' ? 'btn-danger' : 'btn-ghost'} type="button" aria-pressed={mode === 'replace'} onClick={() => setMode('replace')}>الاستيراد الكامل</button>
+        <p>يمسح بيانات الطالبات السابقة ولن تُستعاد، ثم يعتمد الملف الجديد.</p>
+        <button className={mode === 'add' ? 'btn-primary' : 'btn-ghost'} type="button" aria-pressed={mode === 'add'} onClick={() => setMode('add')}>الاستيراد الإضافي</button>
+        <p>يضيف السجلات إلى البيانات الحالية. إذا تكرر السجل المدني تُعتمد البيانات الجديدة.</p>
+      </div>
       <div className="flex flex-wrap items-center gap-3">
         <label className="btn-primary cursor-pointer">
           اختيار ملف Excel
-          <input className="hidden" type="file" accept=".xlsx,.xls,.csv" onChange={onFile} />
+          <input className="hidden" type="file" accept=".xlsx,.xls,.xlsm,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={onFile} />
         </label>
         <button className="btn-ghost" type="button" onClick={downloadStudentsTemplate}>تنزيل نموذج الأعمدة</button>
       </div>
@@ -52,38 +73,8 @@ export default function UploadStudentsExcel() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h3 className="font-extrabold">معاينة الطالبات ({rows.length})</h3>
             <div className="flex flex-wrap gap-2">
-              <button
-                className="btn-danger"
-                type="button"
-                onClick={async () => {
-                  const confirmed = window.confirm('سيتم حذف جميع البيانات السابقة ولن تتمكن من استعادتها. هل توافق على المسح والاستيراد؟');
-                  if (!confirmed) return;
-                  const result = await importStudents(rows, 'replace');
-                  if (!result.ok) {
-                    setError(result.message);
-                    return;
-                  }
-                  setRows([]);
-                  setSummary(result.message);
-                }}
-              >
-                استيراد كامل
-              </button>
-              <button
-                className="btn-primary"
-                type="button"
-                onClick={async () => {
-                  const result = await importStudents(rows, 'add');
-                  if (!result.ok) {
-                    setError(result.message);
-                    return;
-                  }
-                  setRows([]);
-                  setSummary(result.message);
-                }}
-              >
-                استيراد بيانات إضافية
-              </button>
+              <button className="btn-danger" type="button" onClick={() => runImport('replace')}>الاستيراد الكامل</button>
+              <button className="btn-primary" type="button" onClick={() => runImport('add')}>الاستيراد الإضافي</button>
             </div>
           </div>
           <div className="table-wrap">

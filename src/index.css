@@ -502,6 +502,22 @@ table.data tr + tr td { border-top: 1px solid var(--line); }
   .modal-backdrop { align-items: center; }
 }
 
+.import-choices {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.45rem 0.75rem;
+}
+
+.import-choices p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+@media (min-width: 720px) {
+  .import-choices { grid-template-columns: auto minmax(0, 1fr); align-items: center; }
+}
+
 .app-shell {
   display: flex;
   flex-direction: column;
