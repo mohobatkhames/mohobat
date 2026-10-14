@@ -157,6 +157,13 @@ export async function removeCloud(collectionName, id) {
   await deleteDoc(doc(db, collectionName, String(id)));
 }
 
+export async function readCloudStudents() {
+  assertProject();
+  if (!auth?.currentUser) return [];
+  const snap = await getDocs(collection(db, 'students'));
+  return snap.docs.map((item) => revive({ id: item.id, ...item.data() }));
+}
+
 export async function replaceStudentRoster(students) {
   assertProject();
   if (!auth?.currentUser) throw new Error('تعذر استبدال السجل لأن المزامنة غير متصلة.');

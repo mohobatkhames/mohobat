@@ -1,9 +1,9 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { GRADES, activeTheme, feminineJob, isManager, jobRole, ownerIdentity } from '../lib/constants';
-import { cloudSignOut, currentCloudUser, ensureProfile, provisionAccount, pushSnapshot, readOwnProfile, removeCloud, replaceStudentRoster, signInCloud, signInExisting, subscribe, syncBlockMessage, watchAuth, writeCloud } from '../lib/cloud';
+import { cloudSignOut, currentCloudUser, ensureProfile, provisionAccount, pushSnapshot, readCloudStudents, readOwnProfile, removeCloud, replaceStudentRoster, signInCloud, signInExisting, subscribe, syncBlockMessage, watchAuth, writeCloud } from '../lib/cloud';
 import { activeProjectId, centerAttemptsKey, centerDataKey, centerProfile, centerSessionKey, databaseGuard, legacyDataKey, legacySessionKey, readCenterValue } from '../firebase';
 import { nowIso, todayISO, weekdayName, formatHijri } from '../lib/dates';
-import { normalizeId, tempPassword, uid } from '../lib/ids';
+import { normalizeId, separateJoinedName, tempPassword, uid } from '../lib/ids';
 import { cloudSettings, normalizeGateway } from '../lib/gateway';
 import { loginWithDeviceFingerprint, registerFingerprint } from '../lib/webauthn';
 
@@ -316,7 +316,8 @@ export function StoreProvider({ children }) {
               next.students = mergeList(local, remote, 'nationalId', true);
               if (!partial.students.some((student) => !locked.has(String(student.nationalId)))) rosterLockRef.current = null;
             } else {
-              next.students = mergeList(current.students, partial.students, 'nationalId', allowDelete);
+              const studentDelete = session.role !== 'student' && (allowDelete || isManager(session.role));
+              next.students = mergeList(current.students, partial.students, 'nationalId', studentDelete);
             }
           }
           if (partial.courses) next.courses = mergeList(current.courses, partial.courses, 'id', allowDelete);
@@ -357,8 +358,15 @@ export function StoreProvider({ children }) {
       try {
         await ensureProfile({ ...person, role: session.role, job: session.job });
         if (session.role === 'owner') {
-          const published = await pushSnapshot(dataRef.current);
           allowDeleteRef.current = true;
+          const remoteStudents = await readCloudStudents();
+          const pending = dataRef.current.students.filter((student) => student.pendingSync);
+          const adopted = new Map(remoteStudents.map((student) => [String(student.nationalId), student]));
+          pending.forEach((student) => adopted.set(student.nationalId, { ...adopted.get(student.nationalId), ...student }));
+          const next = { ...dataRef.current, students: [...adopted.values()] };
+          dataRef.current = next;
+          commit(next);
+          const published = await pushSnapshot(next);
           const marked = markPublished(dataRef.current, published);
           if (marked !== dataRef.current) commit(marked);
         }
@@ -686,7 +694,8 @@ export function StoreProvider({ children }) {
           ...row,
           nationalId: normalizeId(row.nationalId),
           id: normalizeId(row.nationalId),
-          name: String(row.name || '').trim(),
+          name: separateJoinedName(row.name),
+          guardian: separateJoinedName(row.guardian),
           updatedAt: nowIso(),
           pendingSync: true,
         })).filter((row) => row.name && row.nationalId.length === 10);

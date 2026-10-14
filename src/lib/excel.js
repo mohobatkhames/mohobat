@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import { GRADES } from './constants.js';
-import { normalizeId, toEnglishDigits } from './ids.js';
+import { normalizeId, separateJoinedName, toEnglishDigits } from './ids.js';
 
 function normKey(value) {
   return String(value ?? '')
@@ -92,12 +92,12 @@ export function parseStudentsWorkbook(data) {
     const school = String(row.schoolUpdated || row.school || '').trim();
     students.push({
       nationalId,
-      name,
+      name: separateJoinedName(name),
       grade: canonicalGrade(row.grade || row.stage),
       school,
       phone: toEnglishDigits(row.phone).replace(/[^\d+]/g, ''),
       email: String(row.email || '').trim(),
-      guardian: String(row.guardian || '').trim(),
+      guardian: separateJoinedName(row.guardian),
       guardianPhone: toEnglishDigits(row.guardianPhone).replace(/[^\d+]/g, ''),
       score: Number.isFinite(score) ? score : '',
     });
