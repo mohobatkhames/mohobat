@@ -317,7 +317,13 @@ export function StoreProvider({ children }) {
               if (!partial.students.some((student) => !locked.has(String(student.nationalId)))) rosterLockRef.current = null;
             } else {
               const studentDelete = session.role !== 'student' && (allowDelete || isManager(session.role));
-              next.students = mergeList(current.students, partial.students, 'nationalId', studentDelete);
+              const merged = mergeList(current.students, partial.students, 'nationalId', studentDelete);
+              if (studentDelete) {
+                const remoteIds = new Set(partial.students.map((student) => String(student.nationalId)));
+                next.students = merged.filter((student) => remoteIds.has(String(student.nationalId)));
+              } else {
+                next.students = merged;
+              }
             }
           }
           if (partial.courses) next.courses = mergeList(current.courses, partial.courses, 'id', allowDelete);
@@ -360,10 +366,7 @@ export function StoreProvider({ children }) {
         if (session.role === 'owner') {
           allowDeleteRef.current = true;
           const remoteStudents = await readCloudStudents();
-          const pending = dataRef.current.students.filter((student) => student.pendingSync);
-          const adopted = new Map(remoteStudents.map((student) => [String(student.nationalId), student]));
-          pending.forEach((student) => adopted.set(student.nationalId, { ...adopted.get(student.nationalId), ...student }));
-          const next = { ...dataRef.current, students: [...adopted.values()] };
+          const next = { ...dataRef.current, students: remoteStudents };
           dataRef.current = next;
           commit(next);
           const published = await pushSnapshot(next);
