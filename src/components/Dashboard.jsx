@@ -91,26 +91,26 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-4">
-      <section className="card p-6">
-        <p className="text-sm font-bold text-[var(--accent)]">{formatBoth(today)}</p>
-        <h2 className="mt-1 text-3xl font-extrabold">
+      <section className="welcome-card card">
+        <p className="welcome-date">{formatBoth(today)}</p>
+        <h2 className="welcome-title">
           {session?.role === 'owner' ? 'أهلاً بك في نظام موهوبات' : `أهلاً بك ${session?.name || ''} في نظام موهوبات`}
         </h2>
         {(cloud.mode === 'signing' || cloud.mode === 'ready') && (
           <p className="mt-3 text-lg font-extrabold text-[var(--primary)]">جاري تسجيل الدخول</p>
         )}
-        <p className="mt-2 text-mute">النظام جاهز لإدارة الطالبات، الحضور، البرامج، والتقارير والشهادات. {data.settings.semester} · {data.settings.academicYear}</p>
+        <p className="welcome-lead">النظام جاهز لإدارة الطالبات، الحضور، البرامج، والتقارير والشهادات. {data.settings.semester} · {data.settings.academicYear}</p>
       </section>
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="stat-grid">
         {cards.map(([label, value]) => (
-          <article key={label} className="card p-5">
-            <p className="text-sm text-mute">{label}</p>
-            <p className="mt-2 text-3xl font-extrabold text-[var(--primary)]">{value}</p>
+          <article key={label} className="stat-card card">
+            <p className="stat-label">{label}</p>
+            <p className="stat-value">{value}</p>
           </article>
         ))}
       </section>
-      <section className="grid gap-4 lg:grid-cols-3">
-        <article className="card p-5">
+      <section className="dash-grid dash-grid-3">
+        <article className="card dash-panel">
           <h3 className="mb-3 text-lg font-extrabold">إعدادات النظام العامة</h3>
           <ul className="space-y-2 text-sm leading-7">
             <li>الإدارة: {data.settings.administrationName}</li>
@@ -118,7 +118,7 @@ export default function Dashboard() {
             <li>الفصل: {data.settings.semester} ({data.settings.academicYear})</li>
           </ul>
         </article>
-        <article className="card p-5">
+        <article className="card dash-panel">
           <h3 className="mb-3 text-lg font-extrabold">أقسام النظام</h3>
           <ul className="space-y-2 text-sm leading-7">
             <li>رفع بيانات إكسل وفلترة الطالبات</li>
@@ -128,14 +128,14 @@ export default function Dashboard() {
             <li>التقارير والشهادات</li>
           </ul>
         </article>
-        <article className="card p-5">
+        <article className="card dash-panel">
           <h3 className="mb-3 text-lg font-extrabold">المزامنة السحابية</h3>
           <p className="text-sm leading-7">الطالبات، الحضور والغياب، البرامج، والشهادات تُزامَن مباشرة مع Firestore.</p>
           <p className="mt-3 text-sm font-bold text-[var(--primary)]">{cloud.mode === 'synced' ? 'المزامنة السحابية تعمل' : cloud.mode === 'error' ? 'تعذرت المزامنة مع Firestore' : 'جاري تسجيل الدخول'}</p>
         </article>
       </section>
-      <section className="grid gap-4 lg:grid-cols-2">
-        <article className="card p-5">
+      <section className="dash-grid dash-grid-2">
+        <article className="card dash-panel">
           <h3 className="mb-3 text-lg font-extrabold">بيانات تظهر في التقارير</h3>
           <ul className="space-y-2 text-sm leading-7">
             <li>{data.settings.administrationName}</li>
@@ -144,7 +144,7 @@ export default function Dashboard() {
             <li>{data.settings.semester} — {data.settings.academicYear}</li>
           </ul>
         </article>
-        <article className="card p-5">
+        <article className="card dash-panel">
           <h3 className="mb-3 text-lg font-extrabold">إشعارات الطالبات</h3>
           {notices.length === 0 && <p className="text-sm text-mute">لا توجد إشعارات استلام أو طباعة من حساب طالبة بعد.</p>}
           <ul className="space-y-2">

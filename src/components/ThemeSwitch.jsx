@@ -16,7 +16,7 @@ export default function ThemeSwitch({ crescent = false }) {
           aria-label={item.label}
           aria-pressed={theme === item.id}
           onClick={() => setTheme(item.id)}
-          className="h-7 w-7 rounded-full border-2 border-white shadow"
+          className="theme-dot"
           style={{ background: item.swatch, outline: theme === item.id ? '2px solid var(--text)' : 'none' }}
         />
       ))}

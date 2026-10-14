@@ -72,43 +72,20 @@ export default function Layout() {
   };
 
   return (
-    <div className="bg-app box-border min-h-screen min-w-0 max-w-full overflow-x-hidden lg:grid lg:grid-cols-[280px_minmax(0,1fr)]" dir="rtl">
-      <aside className={`no-print card z-30 m-3 p-4 lg:m-4 ${open ? 'block' : 'hidden lg:block'}`}>
-        <div className="mb-6 px-2">
-          <p className="text-xs font-bold text-[var(--accent)]">نظام موهوبات</p>
-          <h1 className="text-2xl font-extrabold">{store.data.settings.centerName}</h1>
-          <p className="mt-1 text-xs text-mute" dir="ltr">{activeProjectId()}</p>
-        </div>
-        <nav className="space-y-1">
-          {visible.map(([id, label]) => (
-            <a
-              key={id}
-              href={pathFromPage(id)}
-              className={`block w-full rounded-2xl px-4 py-3 text-right font-bold ${page === id || (id === 'reports' && page === 'certificates') ? 'btn-primary' : 'hover:bg-[var(--soft)]'}`}
-              onClick={(event) => {
-                event.preventDefault();
-                navigate(pathFromPage(id));
-                setOpen(false);
-              }}
-            >
-              {label}
-            </a>
-          ))}
-        </nav>
-      </aside>
-
-      <div className="min-w-0 max-w-full overflow-x-hidden">
-        <header className="no-print flex w-full max-w-full flex-col gap-3 px-3 py-3 sm:px-4">
-          <div className="flex min-w-0 w-full items-center gap-3 lg:w-auto lg:flex-1">
-            <button className="btn-ghost shrink-0 lg:hidden" type="button" onClick={() => setOpen((value) => !value)}>القائمة</button>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm leading-6 text-mute">{store.data.settings.administrationName}</p>
-              <p className="text-sm leading-6 text-mute">{store.data.settings.departmentName || DEPARTMENT_NAME}</p>
-              <p className="break-words font-extrabold leading-7">{store.session.name} · {store.session.role === 'trainer' ? (store.session.job || ROLE_LABELS.trainer) : ROLE_LABELS[store.session.role]}</p>
-            </div>
+    <div className="app-shell bg-app" dir="rtl">
+      <header className="topbar no-print">
+        <div className="topbar-brand">
+          <button className="btn-ghost shrink-0 lg:hidden" type="button" onClick={() => setOpen((value) => !value)}>{open ? 'إغلاق' : 'القائمة'}</button>
+          <div className="min-w-0">
+            <p className="truncate text-sm leading-6 text-mute">{store.data.settings.administrationName}</p>
+            <p className="break-words font-extrabold leading-7">{store.session.name} · {store.session.role === 'trainer' ? (store.session.job || ROLE_LABELS.trainer) : ROLE_LABELS[store.session.role]}</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+        </div>
+        <div className="topbar-tools">
+          <div className="topbar-group" aria-label="المظهر">
             <ThemeSwitch />
+          </div>
+          <div className="topbar-group" aria-label="الحساب">
             {store.session?.role === 'owner' && (
               <button className="btn-primary" type="button" onClick={() => navigate('/support')}>تعديل وحفظ</button>
             )}
@@ -116,16 +93,46 @@ export default function Layout() {
             <button className="btn-soft" type="button" onClick={() => setAccount(true)}>حسابي</button>
             <button className="btn-ghost" type="button" onClick={store.logout}>خروج</button>
           </div>
-        </header>
-        <div className="no-print px-4">
-          <Banner tone={store.cloud.mode === 'error' ? 'bad' : 'ok'}>
-            {store.cloud.message}
-            {store.cloud.mode === 'synced' && store.savedAt ? <span className="mx-1 inline whitespace-normal">آخر مزامنة {formatBothDateTime(store.savedAt)}</span> : null}
-          </Banner>
         </div>
-        <main className="box-border w-full min-w-0 max-w-full overflow-x-hidden px-3 py-4 sm:px-4" style={{ paddingInline: 'max(0.75rem, env(safe-area-inset-left), env(safe-area-inset-right))', paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
-          <Active />
-        </main>
+      </header>
+
+      <div className="app-body">
+        <aside className={`sidebar no-print card ${open ? 'open' : ''}`}>
+          <div className="mb-6 px-2">
+            <p className="text-xs font-bold text-[var(--accent)]">نظام موهوبات</p>
+            <h1 className="break-words text-2xl font-extrabold leading-snug">{store.data.settings.centerName}</h1>
+            <p className="mt-1 text-xs leading-6 text-mute">{store.data.settings.departmentName || DEPARTMENT_NAME}</p>
+            <p className="mt-1 text-xs text-mute" dir="ltr">{activeProjectId()}</p>
+          </div>
+          <nav className="space-y-1">
+            {visible.map(([id, label]) => (
+              <a
+                key={id}
+                href={pathFromPage(id)}
+                className={`block w-full rounded-2xl px-4 py-3 text-right font-bold ${page === id || (id === 'reports' && page === 'certificates') ? 'btn-primary' : 'hover:bg-[var(--soft)]'}`}
+                onClick={(event) => {
+                  event.preventDefault();
+                  navigate(pathFromPage(id));
+                  setOpen(false);
+                }}
+              >
+                {label}
+              </a>
+            ))}
+          </nav>
+        </aside>
+
+        <div className="app-content">
+          <div className="no-print px-3 sm:px-4">
+            <Banner tone={store.cloud.mode === 'error' ? 'bad' : 'ok'}>
+              {store.cloud.message}
+              {store.cloud.mode === 'synced' && store.savedAt ? <span className="mx-1 inline whitespace-normal">آخر مزامنة {formatBothDateTime(store.savedAt)}</span> : null}
+            </Banner>
+          </div>
+          <main className="app-main">
+            <Active />
+          </main>
+        </div>
       </div>
 
       {account && (
